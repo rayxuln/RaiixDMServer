@@ -22,8 +22,8 @@ jobs:
       uses: yakuhzi/action-release@v1.2.0
       with:
         # File to upload to the release
-        file: './build/libs/RaiixDMServer-[0-9]+.[0-9]+.[0-9]+.jar'
+        file: './build/libs'
         # Path to changelog file
         changelogs: ./changelogs.txt
       env:
-        GITHUB_TOKEN: ${{ secrets.THE_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
