@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "raiixdmserver",
+  "version": "${version}",
+
+  "name": "RaiixDM For Server",
+  "description": "This is a mod for receiving DanMu from Bilibili on server platform.",
+  "authors": [
+    "Raiix"
+  ],
+  "contact": {
+    "homepage": "none",
+    "sources": "none"
+  },
+
+  "license": "GPLv3",
+  "icon": "assets/raiixdmserver/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.raymondlxtech.raiixdmserver.RaiixDMServer"
+    ]
+  },
+
+  "depends": {
+    "fabricloader": ">=0.7.2",
+    "fabric": "*",
+    "minecraft": "1.15.x"
+  },
+  "suggests": {
+    "flamingo": "*"
+  }
+}
