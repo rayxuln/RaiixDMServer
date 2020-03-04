@@ -25,3 +25,5 @@ jobs:
         file: ./build/libs/RaiixDMServer*.jar
         # Path to changelog file
         changelogs: ./changelogs.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.THE_GITHUB_TOKEN }}
