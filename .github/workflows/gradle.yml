@@ -18,7 +18,7 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew clean build jar
     - name: Action Release
-      if: contains(github.ref, "release")
+      if: contains(github.ref, 'release')
       uses: yakuhzi/action-release@v1.2.0
       with:
         # File to upload to the release
