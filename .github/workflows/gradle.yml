@@ -22,7 +22,9 @@ jobs:
       uses: yakuhzi/action-release@v1.2.0
       with:
         # File to upload to the release
-        file: ./build/libs/RaiixDMServer*.jar
+        file:
+          - './build/libs/RaiixDMServer-*.jar'
+          - '!./build/libs/RaiixDMServer-*-*.jar'
         # Path to changelog file
         changelogs: ./changelogs.txt
       env:
