@@ -1,4 +1,5 @@
-# RaiixDMServer For Fabric
+# RaiixDMServer For Minecraft Fabric
+![Java CI](https://github.com/rayxuln/RaiixDMServer/workflows/Java%20CI/badge.svg?branch=1.15.2)
 
 ## 特性
 - 接收B站直播弹幕
