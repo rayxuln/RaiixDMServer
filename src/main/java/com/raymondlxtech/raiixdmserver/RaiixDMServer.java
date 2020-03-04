@@ -57,9 +57,7 @@ public class RaiixDMServer implements ModInitializer {
             dmsReconnectCommand = new DMSReconnectCommand(this).registry(dispatcher);
         });
 
-        ServerStopCallback.EVENT.register(server -> {
-            disconnectDMServer("all");
-        });
+        ServerStopCallback.EVENT.register(server -> disconnectDMServer("all"));
     }
 
     public void disconnectDMServer(String roomID) {
@@ -98,7 +96,7 @@ public class RaiixDMServer implements ModInitializer {
 
             int code = con.getResponseCode();
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "utf-8"));
             String line;
             StringBuilder res = new StringBuilder();
 
