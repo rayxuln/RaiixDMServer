@@ -28,15 +28,15 @@
 
 列出所有房间信息，包括已断开连接的房间
 
-## dmsset 房间号/default/all 键 值
+### dmsset 房间号/default/all 键 值
 
 设置房间内配置信息，配置信息参考配置文件或者下文
 
-## dmsget 房间号/default/all 键
+### dmsget 房间号/default/all 键
 
 获取房间内配置信息，配置信息参考配置文件或者下文
 
-## dmsreload
+### dmsreload
 
 重新加载配置文件，需要op4权限
 

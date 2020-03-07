@@ -54,6 +54,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 	from sourceSets.main.allSource
 }
 
+task genActionConfig(type: Copy) {
+	from './workflows/gradle.yml'
+	into './build/workflows/'
+	expand(name: archivesBaseName, version: version)
+}
+
 jar {
 	from "LICENSE"
 }
