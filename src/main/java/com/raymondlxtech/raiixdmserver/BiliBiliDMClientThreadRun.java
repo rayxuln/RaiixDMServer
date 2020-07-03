@@ -14,14 +14,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runnable {
-    public BiliBiliDMClientThreadRun(String h, int p, RaiixDMServerRoom r, RaiixDMServer plugin, Entity e) {
+    String token;
+
+    public BiliBiliDMClientThreadRun(String t, String h, int p, RaiixDMServerRoom r, RaiixDMServer plugin, Entity e) {
         super(h, p, r, plugin, e);
+        token = t;
     }
 
     //big
@@ -52,7 +54,7 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
     }
 
     public void sendSocketData(int action, String body) {
-        sendSocketData(0, (short) 16, (short) 1, action, 1, body);
+        sendSocketData(0, (short) 16, (short) 2, action, 1, body);
     }
 
     public void sendSocketData(int packetLength, short magic, short ver, int action, int param, String body) {
@@ -118,6 +120,100 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
     }
 
 
+    public void handleDMMessage(String msg)
+    {
+        JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
+        String cmd = msg_jo.get("cmd").getAsString();
+        //System.out.println("[Raiix] get a cmd: " + cmd);
+        if (cmd.equals("DANMU_MSG")) {
+            JsonArray info = msg_jo.get("info").getAsJsonArray();
+            String danmu_msg = info.get(1).getAsString();
+            if(!validateDanMu(danmu_msg))
+            {
+//                                    thePlugin.theLogger.info("Receive a danmu but blocked due to the black list policy." + danmu_msg);
+                return;
+            }
+            String danmu_authur = info.get(2).getAsJsonArray().get(1).getAsString();
+            int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
+
+            //String danmu = String.format("[弹幕][UL%d]<%s>: %s", u_level, danmu_authur, danmu_msg);
+
+            //System.out.println(danmu);
+
+            // Get room config
+            Config rc = thePlugin.theConfigHelper.getConfig();
+            HashMap<String, String> mapStr = new HashMap<>();
+            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
+            {
+                mapStr.put(e.getKey(), e.getValue());
+            }
+            if(rc.roomConfigs.get(theRoom.roomID) != null)
+            {
+                rc = rc.roomConfigs.get(theRoom.roomID);
+                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
+                {
+                    mapStr.put(e.getKey(), e.getValue());
+                }
+            }
+            mapStr.put("uLevel", String.valueOf(u_level));
+            mapStr.put("danmuAuthur", danmu_authur);
+            mapStr.put("danmuMsg", danmu_msg);
+            mapStr.put("roomTitle", theRoom.roomTitle);
+            mapStr.put("roomOwner", theRoom.ownerName);
+
+            // Parse styled msg
+            Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.chat_dm_style, mapStr);
+            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+
+        } else if (cmd.equals("SEND_GIFT")) {
+            JsonObject data = msg_jo.get("data").getAsJsonObject();
+
+            String giftName = data.get("giftName").getAsString();
+            int num = data.get("num").getAsInt();
+            String uname = data.get("uname").getAsString();
+            String actionName = data.get("action").getAsString();
+
+//                                String gift_msg = String.format("[礼物] %s%s%d个%s", uname, actionName, num, giftName);
+
+
+
+//                                System.out.println("[Raiix] " + uname + " has sent a gift!");
+
+            // Get room config
+            Config rc = thePlugin.theConfigHelper.getConfig();
+            HashMap<String, String> mapStr = new HashMap<>();
+            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
+            {
+                mapStr.put(e.getKey(), e.getValue());
+            }
+            if(rc.roomConfigs.get(theRoom.roomID) != null)
+            {
+                rc = rc.roomConfigs.get(theRoom.roomID);
+                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
+                {
+                    mapStr.put(e.getKey(), e.getValue());
+                }
+            }
+            mapStr.put("danmuAuthur", uname);
+            mapStr.put("num", String.valueOf(num));
+            mapStr.put("actionName", actionName);
+            mapStr.put("giftName", giftName);
+            mapStr.put("roomTitle", theRoom.roomTitle);
+            mapStr.put("roomOwner", theRoom.ownerName);
+
+            // Parse styled msg
+            Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.gift_dm_style, mapStr);
+            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+        }
+//                            else if (cmd.equals("PREPARING")) {
+//                                //System.out.println("[Raiix] live is preparing...");
+//                            } else if (cmd.equals("LIVE")) {
+//                                //System.out.println("[Raiix] live is started!");
+//                            } else if (cmd.equals("GUARD_MSG")) {
+//
+//                            }
+    }
+
 
     public void disconnect() throws IOException {
         if (clientSocket == null || !clientSocket.isConnected() || clientSocket.isClosed()) return;
@@ -136,7 +232,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 
                 Random r = new Random();
                 long tempuid = (long) (1e14 + 2e14 * r.nextDouble());
-                String joinMsg = "{\"roomid\":" + getRoomId() + ", \"uid\":" + tempuid + "}";
+//                String joinMsg = "{\"roomid\":" + getRoomId() + ", \"uid\":" + tempuid + "}";
+                String joinMsg = "{\"roomid\": " + getRoomId() + ", \"uid\": 0, \"protover\": 2, \"token\": \"" + token + "\", \"platform\": \"RaiixDM Server\"}";
                 sendSocketData(7, joinMsg);
 
 
@@ -158,6 +255,7 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                 System.out.println("[Raiix] Connect to danmu server Fail!");
             }
             byte[] stableBuffer = new byte[clientSocket.getReceiveBufferSize()];
+            byte[] msgBuffer = new byte[clientSocket.getReceiveBufferSize()];
             int error_cnt = 0;
             while (isWorking()) {
 
@@ -220,98 +318,24 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                         }
                         case 4:
                         case 5: {
-                            String msg = new String(stableBuffer, bodyStartPos, bodyLength, "utf-8");
-                            //System.out.println("[Raiix] get a dan mu: \n" + msg);
-                            JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
-                            String cmd = msg_jo.get("cmd").getAsString();
-                            //System.out.println("[Raiix] get a cmd: " + cmd);
-                            if (cmd.equals("DANMU_MSG")) {
-                                JsonArray info = msg_jo.get("info").getAsJsonArray();
-                                String danmu_msg = info.get(1).getAsString();
-                                if(!validateDanMu(danmu_msg))
-                                {
-//                                    thePlugin.theLogger.info("Receive a danmu but blocked due to the black list policy." + danmu_msg);
-                                    break;
-                                }
-                                String danmu_authur = info.get(2).getAsJsonArray().get(1).getAsString();
-                                int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
-
-                                //String danmu = String.format("[弹幕][UL%d]<%s>: %s", u_level, danmu_authur, danmu_msg);
-
-                                //System.out.println(danmu);
-
-                                // Get room config
-                                Config rc = thePlugin.theConfigHelper.getConfig();
-                                HashMap<String, String> mapStr = new HashMap<>();
-                                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                                {
-                                    mapStr.put(e.getKey(), e.getValue());
-                                }
-                                if(rc.roomConfigs.get(theRoom.roomID) != null)
-                                {
-                                    rc = rc.roomConfigs.get(theRoom.roomID);
-                                    for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                                    {
-                                        mapStr.put(e.getKey(), e.getValue());
-                                    }
-                                }
-                                mapStr.put("uLevel", String.valueOf(u_level));
-                                mapStr.put("danmuAuthur", danmu_authur);
-                                mapStr.put("danmuMsg", danmu_msg);
-                                mapStr.put("roomTitle", theRoom.roomTitle);
-                                mapStr.put("roomOwner", theRoom.ownerName);
-
-                                // Parse styled msg
-                                Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.chat_dm_style, mapStr);
-                                theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-
-                            } else if (cmd.equals("SEND_GIFT")) {
-                                JsonObject data = msg_jo.get("data").getAsJsonObject();
-
-                                String giftName = data.get("giftName").getAsString();
-                                int num = data.get("num").getAsInt();
-                                String uname = data.get("uname").getAsString();
-                                String actionName = data.get("action").getAsString();
-
-//                                String gift_msg = String.format("[礼物] %s%s%d个%s", uname, actionName, num, giftName);
-
-
-
-//                                System.out.println("[Raiix] " + uname + " has sent a gift!");
-
-                                // Get room config
-                                Config rc = thePlugin.theConfigHelper.getConfig();
-                                HashMap<String, String> mapStr = new HashMap<>();
-                                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                                {
-                                    mapStr.put(e.getKey(), e.getValue());
-                                }
-                                if(rc.roomConfigs.get(theRoom.roomID) != null)
-                                {
-                                    rc = rc.roomConfigs.get(theRoom.roomID);
-                                    for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                                    {
-                                        mapStr.put(e.getKey(), e.getValue());
-                                    }
-                                }
-                                mapStr.put("danmuAuthur", uname);
-                                mapStr.put("num", String.valueOf(num));
-                                mapStr.put("actionName", actionName);
-                                mapStr.put("giftName", giftName);
-                                mapStr.put("roomTitle", theRoom.roomTitle);
-                                mapStr.put("roomOwner", theRoom.ownerName);
-
-                                // Parse styled msg
-                                Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.gift_dm_style, mapStr);
-                                theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+                            // Need to decompress the data
+//                            printBytes(stableBuffer, bodyStartPos, bodyLength);
+                            Inflater decompresser = new Inflater();
+                            decompresser.setInput(stableBuffer, bodyStartPos, bodyLength);
+                            int decompressed_size = 0;
+                            try {
+                                decompressed_size = decompresser.inflate(msgBuffer);
+                                decompresser.end();
+                            } catch (DataFormatException e){
+//                                thePlugin.theLogger.error("Decompressing body data error \n" + e.toString());
+                                break;
                             }
-//                            else if (cmd.equals("PREPARING")) {
-//                                //System.out.println("[Raiix] live is preparing...");
-//                            } else if (cmd.equals("LIVE")) {
-//                                //System.out.println("[Raiix] live is started!");
-//                            } else if (cmd.equals("GUARD_MSG")) {
-//
-//                            }
+
+                            String msg = new String(msgBuffer, 0, decompressed_size, "utf-8");
+                            ArrayList<String> msgs = divideAllJsonObjects(msg);
+                            for(String m:msgs){
+                                handleDMMessage(m);
+                            }
 
                             break;
                         }
@@ -331,6 +355,15 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                             System.out.println("Unknown Action...");
                             break;
                         }
+                    }
+                }else if(size == -1){
+                    error_cnt += 1;
+                    if(error_cnt >= 10)
+                    {
+                        sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(1)!");
+                        System.out.println("[Raiix] Wrong buffer size");
+                        working = false;
+                        break;
                     }
                 }
             }
