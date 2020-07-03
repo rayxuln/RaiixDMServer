@@ -11,6 +11,7 @@ import net.minecraft.util.Formatting;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class DMClientThreadRun {
@@ -104,6 +105,36 @@ public class DMClientThreadRun {
         return true;
     }
 
+    public int getMatchBlanket(String s, int i){
+        int cnt=1;
+        for (;i<s.length();++i)
+        {
+            if(s.charAt(i) == '{') cnt += 1;
+            if(s.charAt(i) == '}') cnt -= 1;
+            if(cnt == 0) return i;
+        }
+        return -1;
+    }
+    public ArrayList<String> divideAllJsonObjects(String rawStr){
+        ArrayList<String> res = new ArrayList<>();
+
+        int pos = 0;
+        while(pos < rawStr.length()){
+            if(rawStr.charAt(pos) == '{')
+            {
+                int mPos = getMatchBlanket(rawStr, pos+1);
+                if(mPos == -1) break;
+                if(pos >= mPos) break;
+                String msg = rawStr.substring(pos, mPos+1);
+                res.add(msg);
+//                thePlugin.theLogger.info("pos("+pos+"): " + msg);
+                pos = mPos;
+            }
+            pos += 1;
+        }
+        return res;
+    }
+
     public static Text mapStringToStyledText(String style, HashMap<String, String> mapStr)
     {
         return new StyleParser().parse(style, mapStr);
@@ -168,7 +199,7 @@ public class DMClientThreadRun {
             while(next < style.length())
             {
                 boolean hasIn = (next - 1 < 0 || style.charAt(next-1) != '\\');
-                hasIn = hasIn && style.charAt(next) == '%' || (style.charAt(next) == '{' && style.charAt(next) == '{');
+                hasIn = hasIn && style.charAt(next) == '%' || (style.charAt(next) == '{' && style.charAt(next+1) == '{');
                 if(hasIn)
                 {
                     int aEnd = next;
@@ -228,7 +259,7 @@ public class DMClientThreadRun {
 
                         aStart = next;
                         continue;
-                    }else if(style.charAt(next) == '{' && style.charAt(next) == '{')
+                    }else if(style.charAt(next) == '{' && style.charAt(next+1) == '{')
                     {
                         hasIn = true;
                         start = next + 2;

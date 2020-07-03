@@ -135,10 +135,11 @@ public class RaiixDMServer implements ModInitializer {
                 return "未找到" + roomID + "房间，" + "请确认房间号是否正确！";
             }
 
+            String token = resData.get("data").getAsJsonObject().get("token").getAsString();
             String host = resData.get("data").getAsJsonObject().get("host").getAsString();
             String port = resData.get("data").getAsJsonObject().get("port").getAsString();
 
-            theDMClient = new BiliBiliDMClientThreadRun(host, Integer.parseInt(port), theRoom, this, executor);
+            theDMClient = new BiliBiliDMClientThreadRun(token, host, Integer.parseInt(port), theRoom, this, executor);
             // Set up information of the room
             theRoom.theClient = theDMClient;
             theRoom.roomID = roomID;
