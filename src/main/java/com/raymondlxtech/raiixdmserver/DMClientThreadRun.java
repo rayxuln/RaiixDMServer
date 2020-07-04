@@ -4,10 +4,12 @@ import com.raymondlxtech.raiixdmserver.config.Config;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Util;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -61,7 +63,8 @@ public class DMClientThreadRun {
             thePlugin.theLogger.info(msg.getString());
             return;
         }
-        theExecutor.sendMessage(msg);
+//        theExecutor.sendMessage(msg);
+        theExecutor.sendSystemMessage(msg, Util.NIL_UUID);
     }
 
     public static void printBytes(byte[] bs, int start, int size) {
@@ -156,7 +159,7 @@ public class DMClientThreadRun {
         private String style;
         private HashMap<String, String> mapStr;
         private int next;
-        private Text result;
+        private MutableText result;
         private Formatting currentColor;
 
         public StyleParser()
@@ -166,7 +169,7 @@ public class DMClientThreadRun {
 
         public Text parse(String s, HashMap<String, String> ms)
         {
-            result = new TranslatableText("").setStyle(new Style().setColor(Formatting.WHITE));
+            result = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
             currentColor = Formatting.WHITE;
             style = s;
             next = 0;
@@ -207,7 +210,9 @@ public class DMClientThreadRun {
                     {
                         String piece = style.substring(aStart, aEnd);
 //                        System.out.println("[Raiix parse] piece=" + piece);
-                        result.append(new TranslatableText(piece).setStyle(new Style().setColor(currentColor)));
+                        result.append(new TranslatableText(piece).setStyle(Style.EMPTY.withColor(currentColor)));
+
+
                         aStart = aEnd + 1;
                     }
                 }
@@ -228,7 +233,9 @@ public class DMClientThreadRun {
                             colorPattern();
                         }catch (WrongPatternException e)
                         {
-                            Text temp = new TranslatableText("<ERROR>").setStyle(new Style().setColor(Formatting.RED));
+                            Text temp = new TranslatableText("<ERROR>").setStyle(Style.EMPTY.withColor(Formatting.RED));
+
+
                             result.append(temp);
                             success = false;
                         }
@@ -268,7 +275,7 @@ public class DMClientThreadRun {
                             keyPattern();
                         }catch (WrongPatternException e)
                         {
-                            Text temp = new TranslatableText("<ERROR>").setStyle(new Style().setColor(Formatting.RED));
+                            Text temp = new TranslatableText("<ERROR>").setStyle(Style.EMPTY.withColor(Formatting.RED));
                             result.append(temp);
                             success = false;
                         }
@@ -282,7 +289,7 @@ public class DMClientThreadRun {
 //                                System.out.println("KeyName="+keyName);
                                 String value = mapStr.get(keyName);
                                 if (value != null) {
-                                    result.append(new TranslatableText(value).setStyle(new Style().setColor(currentColor)));
+                                    result.append(new TranslatableText(value).setStyle(Style.EMPTY.withColor(currentColor)));
                                 }
                             }
                         }

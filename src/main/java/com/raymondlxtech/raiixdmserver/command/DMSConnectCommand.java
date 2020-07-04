@@ -62,7 +62,7 @@ public class DMSConnectCommand {
 //            {
 //                sender.sendMessage(new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)));
 //            }
-            cc.getSource().sendFeedback(new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)), true);
+            cc.getSource().sendFeedback(new TranslatableText(error_msg).setStyle(Style.EMPTY.withColor(Formatting.RED)), true);
         }
     }
 }

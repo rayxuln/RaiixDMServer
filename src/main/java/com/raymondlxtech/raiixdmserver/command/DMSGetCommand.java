@@ -60,9 +60,9 @@ public class DMSGetCommand {
             Config roomConfig = theMod.theConfigHelper.getConfig();
             String value = roomConfig.get(key);
             sendFeedBack(cc,
-                    new TranslatableText("默认" + args[0] + " \"" + key +"\" 的值为 \"").setStyle(new Style().setColor(Formatting.WHITE))
-                    .append(new TranslatableText(value).setStyle(new Style().setColor(Formatting.GOLD)))
-                    .append(new TranslatableText("\"").setStyle(new Style().setColor(Formatting.WHITE)))
+                    new TranslatableText("默认" + args[0] + " \"" + key +"\" 的值为 \"").setStyle(Style.EMPTY.withColor(Formatting.WHITE))
+                    .append(new TranslatableText(value).setStyle(Style.EMPTY.withColor(Formatting.GOLD)))
+                    .append(new TranslatableText("\"").setStyle(Style.EMPTY.withColor(Formatting.WHITE)))
             );
         }
         else
@@ -71,7 +71,7 @@ public class DMSGetCommand {
             Config roomConfig = theMod.theConfigHelper.getConfig().roomConfigs.get(args[0]);
             if(roomConfig == null)
             {
-                sendFeedBack(cc, new TranslatableText("未找到房间" + args[0] + " 的配置信息!").setStyle(new Style().setColor(Formatting.RED)));
+                sendFeedBack(cc, new TranslatableText("未找到房间" + args[0] + " 的配置信息!").setStyle(Style.EMPTY.withColor(Formatting.RED)));
                 return;
             }
             String value = roomConfig.get(key);

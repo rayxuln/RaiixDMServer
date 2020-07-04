@@ -45,9 +45,9 @@ public class DMSListCommand {
         ArrayList<Text> msg = new ArrayList<>();
         msg.add(new TranslatableText(">====| 列出房间 |====<"));
         msg.add(
-                new TranslatableText("当前已添加的房间(").setStyle(new Style().setColor(Formatting.WHITE))
-                        .append(new TranslatableText(Integer.toString(rooms.size())).setStyle(new Style().setColor(Formatting.GOLD)))
-                        .append(new TranslatableText("): ").setStyle(new Style().setColor(Formatting.WHITE)))
+                new TranslatableText("当前已添加的房间(").setStyle(Style.EMPTY.withColor(Formatting.WHITE))
+                        .append(new TranslatableText(Integer.toString(rooms.size())).setStyle(Style.EMPTY.withColor(Formatting.GOLD)))
+                        .append(new TranslatableText("): ").setStyle(Style.EMPTY.withColor(Formatting.WHITE)))
         );
         for(Map.Entry<String, RaiixDMServerRoom> kr : rooms)
         {
@@ -55,16 +55,16 @@ public class DMSListCommand {
             if(r == null)
             {
                 msg.add(
-                        new TranslatableText("[").setStyle(new Style().setColor(Formatting.WHITE))
-                                .append(new TranslatableText(kr.getKey()).setStyle(new Style().setColor(Formatting.RED)))
-                                .append(new TranslatableText("] 已断开！").setStyle(new Style().setColor(Formatting.WHITE)))
+                        new TranslatableText("[").setStyle(Style.EMPTY.withColor(Formatting.WHITE))
+                                .append(new TranslatableText(kr.getKey()).setStyle(Style.EMPTY.withColor(Formatting.RED)))
+                                .append(new TranslatableText("] 已断开！").setStyle(Style.EMPTY.withColor(Formatting.WHITE)))
                 );
             }else
             {
                 msg.add(
-                        new TranslatableText("[").setStyle(new Style().setColor(Formatting.WHITE))
-                                .append(new TranslatableText(r.roomID).setStyle(new Style().setColor(Formatting.GREEN)))
-                                .append(new TranslatableText("]" + r.roomTitle + " - " + r.ownerName).setStyle(new Style().setColor(Formatting.WHITE)))
+                        new TranslatableText("[").setStyle(Style.EMPTY.withColor(Formatting.WHITE))
+                                .append(new TranslatableText(r.roomID).setStyle(Style.EMPTY.withColor(Formatting.GREEN)))
+                                .append(new TranslatableText("]" + r.roomTitle + " - " + r.ownerName).setStyle(Style.EMPTY.withColor(Formatting.WHITE)))
                 );
             }
         }

@@ -5,8 +5,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.raymondlxtech.raiixdmserver.config.Config;
 import net.minecraft.entity.Entity;
+import net.minecraft.network.MessageType;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
+import net.minecraft.util.Util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -163,8 +165,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 
             // Parse styled msg
             Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.chat_dm_style, mapStr);
-            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-
+//            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+            theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
         } else if (cmd.equals("SEND_GIFT")) {
             JsonObject data = msg_jo.get("data").getAsJsonObject();
 
@@ -203,7 +205,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 
             // Parse styled msg
             Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.gift_dm_style, mapStr);
-            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+//            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
+            theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
         }
 //                            else if (cmd.equals("PREPARING")) {
 //                                //System.out.println("[Raiix] live is preparing...");
@@ -219,7 +222,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
         if (clientSocket == null || !clientSocket.isConnected() || clientSocket.isClosed()) return;
         clientSocket.close();
         System.out.println("Disconnected with dm server.");
-        theRoom.theMinecraftServer.getPlayerManager().sendToAll(new TranslatableText("已经与直播房间("+theRoom.roomID+")断开连接!"));
+//        theRoom.theMinecraftServer.getPlayerManager().sendToAll(new TranslatableText("已经与直播房间("+theRoom.roomID+")断开连接!"));
+        theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(new TranslatableText("已经与直播房间("+theRoom.roomID+")断开连接!"), MessageType.CHAT, Util.NIL_UUID);
     }
 
     @Override

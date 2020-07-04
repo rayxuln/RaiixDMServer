@@ -44,6 +44,6 @@ public class DMSReloadCommand {
     public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
     {
         theMod.theConfigHelper.loadConfig();
-        cc.getSource().sendFeedback(new TranslatableText("已重新加载RaiixDMServer的配置文件").setStyle(new Style().setColor(Formatting.WHITE)), true);
+        cc.getSource().sendFeedback(new TranslatableText("已重新加载RaiixDMServer的配置文件").setStyle(Style.EMPTY.withColor(Formatting.WHITE)), true);
     }
 }
