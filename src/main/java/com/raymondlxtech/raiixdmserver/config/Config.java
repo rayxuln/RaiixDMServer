@@ -6,7 +6,7 @@ import java.util.*;
 public class Config{
     //========== Config properties==========
     @OptionValues(value = {"true", "false"})
-    public boolean auto_reconnect = true;
+    public boolean auto_reconnect = false;
     @OptionValues(value = {"10000", "30000"})
     public long auto_reconnect_delay = 10000;
 

@@ -83,9 +83,16 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             dmsReconnectCommand = new DMSReconnectCommand(this).registry(dispatcher);
             dmsRemoveRoomCommand = new DMSRemoveRoomCommand(this).registry(dispatcher);
             dmsAddRoomCommand = new DMSAddRoomCommand(this).registry(dispatcher);
+
+            loadAddedRooms();
         });
 
-        ServerStopCallback.EVENT.register(server -> disconnectDMServer("all"));
+        ServerStopCallback.EVENT.register(server -> {
+            disconnectDMServer("all");
+            theMinecraftServer = null;
+        });
+
+
     }
 
     public void loadAddedRooms(){

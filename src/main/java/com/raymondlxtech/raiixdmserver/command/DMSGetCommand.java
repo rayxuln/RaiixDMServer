@@ -4,6 +4,10 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.raymondlxtech.raiixdmserver.RaiixDMServer;
 import com.raymondlxtech.raiixdmserver.RaiixDMServerRoom;
 import com.raymondlxtech.raiixdmserver.config.Config;
@@ -18,6 +22,7 @@ import net.minecraft.util.Formatting;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public class DMSGetCommand extends RaiixDMSCommand {
     private static final String name = "dmsget";
@@ -36,7 +41,38 @@ public class DMSGetCommand extends RaiixDMSCommand {
         theDispatcher.register(
                 CommandManager.literal(getName())
                         .then(CommandManager.argument("roomID", StringArgumentType.string())
+                                .suggests(new SuggestionProvider<ServerCommandSource>() {
+                                    @Override
+                                    public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                        for(String roomID:theMod.theConfigHelper.getConfig().roomConfigs.keySet()){
+                                            builder.suggest(roomID);
+                                        }
+                                        builder.suggest("default");
+                                        return builder.buildFuture();
+                                    }
+                                })
                                 .then(CommandManager.argument("key", StringArgumentType.string())
+                                        .suggests(new SuggestionProvider<ServerCommandSource>() {
+                                            @Override
+                                            public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                                String roomID = StringArgumentType.getString(context, "roomID");
+                                                if(roomID.equals("default")){
+                                                    for(String p:theMod.theConfigHelper.getConfig().getProperties()){
+                                                        builder.suggest(p);
+                                                    }
+                                                }else{
+                                                    Config roomConfig = theMod.theConfigHelper.getConfig().roomConfigs.get(roomID);
+                                                    if(roomConfig != null){
+                                                        for(String p:roomConfig.getProperties()){
+                                                            builder.suggest(p);
+                                                        }
+                                                    }else{
+                                                        builder.suggest("<Wrong Room ID>");
+                                                    }
+                                                }
+                                                return builder.buildFuture();
+                                            }
+                                        })
                                         .executes((commandContext) -> {
                                             String[] args = new String[3];
                                             args[0] = StringArgumentType.getString(commandContext, "roomID");
