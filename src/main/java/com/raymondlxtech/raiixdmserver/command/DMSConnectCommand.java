@@ -15,18 +15,19 @@ import net.minecraft.text.Style;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 
-public class DMSConnectCommand {
+public class DMSConnectCommand extends RaiixDMSCommand {
     private static final String name = "dmsconnect";
 
-    private RaiixDMServer theMod;
     public DMSConnectCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSConnectCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName()).then(CommandManager.argument("roomID", StringArgumentType.greedyString()).executes((commandContext) -> {
@@ -36,7 +37,7 @@ public class DMSConnectCommand {
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), args);
+                                execute(commandContext.getSource().getEntity(), args);
                             }
                         }).start();
                     }catch (Exception e)
@@ -49,10 +50,11 @@ public class DMSConnectCommand {
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         if(args.length < 1) return;
-        String error_msg = theMod.connectBiliBiliDMServer(args[0], sender, server);
+        String error_msg = theMod.connectBiliBiliDMServer(args[0], sender);
         if(!error_msg.isEmpty())
         {
 //            if(sender == null)
@@ -62,7 +64,7 @@ public class DMSConnectCommand {
 //            {
 //                sender.sendMessage(new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)));
 //            }
-            cc.getSource().sendFeedback(new TranslatableText(error_msg).setStyle(Style.EMPTY.withColor(Formatting.RED)), true);
+            sendFeedback(sender, new TranslatableText(error_msg).setStyle(Style.EMPTY.withColor(Formatting.RED)));
         }
     }
 }

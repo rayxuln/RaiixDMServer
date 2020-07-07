@@ -20,18 +20,19 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 
-public class DMSSetCommand {
+public class DMSSetCommand extends RaiixDMSCommand {
     private static final String name = "dmsset";
 
-    private RaiixDMServer theMod;
     public DMSSetCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSSetCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName())
@@ -43,7 +44,7 @@ public class DMSSetCommand {
                                                     args[0] = StringArgumentType.getString(commandContext, "roomID");
                                                     args[1] = StringArgumentType.getString(commandContext, "key");
                                                     args[2] = StringArgumentType.getString(commandContext, "value");
-                                                    execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), args);
+                                                    execute(commandContext.getSource().getEntity(), args);
                                                     return Command.SINGLE_SUCCESS;
                                                 }))))
 
@@ -51,7 +52,8 @@ public class DMSSetCommand {
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         if(args.length < 3) return;
 
@@ -61,10 +63,10 @@ public class DMSSetCommand {
             for(Map.Entry<String, RaiixDMServerRoom> r : kr)
             {
                 args[0] = r.getKey();
-                execute(cc, server, sender, args);
+                execute(sender, args);
             }
             args[0] = "default";
-            execute(cc, server, sender, args);
+            execute(sender, args);
         }else if(args[0].equals("default"))
         {
             String key = args[1];
@@ -72,7 +74,7 @@ public class DMSSetCommand {
 
             Config roomConfig = theMod.theConfigHelper.getConfig();
             roomConfig.set(key, value);
-            sendFeedBack(cc, "已将默认" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
+            sendFeedback(sender, "已将默认" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
         }
         else
         {
@@ -86,19 +88,9 @@ public class DMSSetCommand {
                 theMod.theConfigHelper.getConfig().roomConfigs.put(args[0], roomConfig);
             }
             roomConfig.set(key, value);
-            sendFeedBack(cc, "已将房间" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
+            sendFeedback(sender, "已将房间" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
         }
 
         theMod.theConfigHelper.saveConfig();
-    }
-
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, Text msg)
-    {
-        cc.getSource().sendFeedback(msg, false);
-    }
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, String msg)
-    {
-
-        sendFeedBack(cc, new TranslatableText(msg));
     }
 }

@@ -1,18 +1,38 @@
 package com.raymondlxtech.raiixdmserver.config;
 
-import java.util.HashMap;
+import java.lang.reflect.Field;
+import java.util.*;
 
 public class Config{
+    //========== Config properties==========
+    @OptionValues(value = {"true", "false"})
+    public boolean auto_reconnect = true;
+    @OptionValues(value = {"10000", "30000"})
+    public long auto_reconnect_delay = 10000;
+
+    @OptionValues(value = {""})
     public String black_dm = "";
+    @OptionValues(value = {""})
     public String white_dm = "";
+    @OptionValues(value = {"black", "white"})
     public String mode = "black";
+    @OptionValues(value = {"bilibili"})
     public String platform = "bilibili";
 
+    @OptionValues(value = {"%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}"})
     public String chat_dm_style = "%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}";
+    @OptionValues(value = {"%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}"})
     public String gift_dm_style = "%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}";
 
+
+
+    @HidedConfigProperty
+    public ArrayList<String> addedRooms = new ArrayList<>();
+
+    @HidedConfigProperty
     public HashMap<String, Config> roomConfigs = new HashMap<>();
 
+    @HidedConfigProperty
     public HashMap<String, String> customKeys = new HashMap<>();
 
     public String getStringNotNull(String s)
@@ -26,6 +46,9 @@ public class Config{
     }
     public void copyFrom(Config c, boolean all)
     {
+        auto_reconnect = c.auto_reconnect;
+        auto_reconnect_delay = c.auto_reconnect_delay;
+
         black_dm = getStringNotNull(c.black_dm);
         white_dm = getStringNotNull(c.white_dm);
         mode = getStringNotNull(c.mode);
@@ -36,9 +59,36 @@ public class Config{
 
         if(all)
         {
+            addedRooms = (ArrayList<String>) c.addedRooms.clone();
             roomConfigs = (HashMap<String, Config>) c.roomConfigs.clone();
             customKeys = (HashMap<String, String>) c.customKeys.clone();
         }
+    }
+
+    public List<String> getProperties(){
+        List<String> res = new LinkedList<>();
+        for(Field f:getClass().getFields()){
+            if(!f.isAnnotationPresent(HidedConfigProperty.class)){
+                res.add(f.getName());
+            }
+        }
+        res.addAll(customKeys.keySet());
+        return res;
+    }
+
+    public List<String> getPropertyOptionValues(String fieldName){
+        List<String> res = new LinkedList<>();
+        res.add("<No Option>");
+        try {
+            Field field = getClass().getField(fieldName);
+            if(field.isAnnotationPresent(OptionValues.class)){
+                String[] values = field.getAnnotation(OptionValues.class).value();
+                return Arrays.asList(values);
+            }
+        }catch (NoSuchFieldException | SecurityException e){
+            return res;
+        }
+        return res;
     }
 
     public void set(String key, String value)
@@ -61,7 +111,14 @@ public class Config{
         }else if(key.equals("gift_dm_style"))
         {
             gift_dm_style = value;
-        }else
+        }else if(key.equals("auto_reconnect"))
+        {
+            auto_reconnect = Boolean.parseBoolean(value);
+        }else if(key.equals("auto_reconnect_delay"))
+        {
+            auto_reconnect_delay = Long.parseLong(value);
+        }
+        else
         {
             customKeys.put(key, value);
         }
@@ -87,6 +144,12 @@ public class Config{
         }else if(key.equals("gift_dm_style"))
         {
             return  getStringNotNull(gift_dm_style);
+        }else if(key.equals("auto_reconnect"))
+        {
+            return "" + auto_reconnect;
+        }else if(key.equals("auto_reconnect_delay"))
+        {
+            return "" + auto_reconnect_delay;
         }else
         {
             return  getStringNotNull(customKeys.get(key));

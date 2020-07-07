@@ -1,31 +1,45 @@
 package com.raymondlxtech.raiixdmserver;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.raymondlxtech.raiixdmserver.config.Config;
-import net.minecraft.entity.Entity;
-import net.minecraft.network.MessageType;
-import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
-import net.minecraft.util.Util;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Random;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
-public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runnable {
-    String token;
+public class BiliBiliDMClient implements Runnable {
+    final String confURL = "https://api.live.bilibili.com/room/v1/Danmu/getConf?room_id=";
+    final String roomInfoURL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=";
 
-    public BiliBiliDMClientThreadRun(String t, String h, int p, RaiixDMServerRoom r, RaiixDMServer plugin, Entity e) {
-        super(h, p, r, plugin, e);
-        token = t;
+    String token;
+    String host;
+    int port;
+
+    Socket clientSocket;
+    BiliBiliDMPlugin thePlugin;
+
+    //room info
+    RaiixDMServerRoom theRoom;
+
+    //danmu
+    final short protocol = 2;
+
+    boolean working;
+
+    public BiliBiliDMClient(RaiixDMServerRoom r, RaiixDMServer plugin){
+        theRoom = r;
+
+        clientSocket = null;
+
+        thePlugin = plugin;
+
+        working = true;
     }
 
     //big
@@ -46,17 +60,20 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
         return b;
     }
 
-//    public HashMap<String, String> getMapStr()
-//    {
-//
-//    }
+    //big
+    public int bytesToInt(byte[] bs, int start) {
+        int res = 0;
+        ByteBuffer bb = ByteBuffer.wrap(bs, start, 4);
+        res = bb.getInt();
+        return res;
+    }
 
     public void sendSocketData(int action) {
         sendSocketData(action, "");
     }
 
     public void sendSocketData(int action, String body) {
-        sendSocketData(0, (short) 16, (short) 2, action, 1, body);
+        sendSocketData(0, (short) 16, (short) protocol, action, 1, body);
     }
 
     public void sendSocketData(int packetLength, short magic, short ver, int action, int param, String body) {
@@ -93,8 +110,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 //                        System.out.println("[Raiix client] Sended package data:");
 //                        printBytes(buffer, 0, buffer.length);
                     } catch (Exception e) {
-                        System.out.println("[Raiix client] Error: \n" + e.toString());
-                        sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(2)!");
+                        thePlugin.getTheLogger().error("[Raiix client] Error: \n" + e.toString());
+                        thePlugin.sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(2)!", theRoom.theClient);
                         working = false;
                     }
                 }
@@ -102,128 +119,141 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
             t.start();
 
         } catch (Exception e) {
-            System.out.println("[Raiix] Error:\n" + e.toString());
-            sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(3)!");
+            thePlugin.getTheLogger().error("[Raiix] Error:\n" + e.toString());
+            thePlugin.sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(3)!", theRoom.theClient);
             working = false;
         }
 
     }
 
-    //big
-    public int bytesToInt(byte[] bs, int start) {
-        int res = 0;
-//        res = res | bs[start + 3];
-//        res = res | bs[start + 2] << 8;
-//        res = res | bs[start + 1] << 16;
-//        res = res | bs[start + 0] << 24;
-        ByteBuffer bb = ByteBuffer.wrap(bs, start, 4);
-        res = bb.getInt();
-        return res;
+    public int getRoomViewer(){
+        return theRoom.viewerNumber;
     }
 
+    public String getRoomId(){
+        return theRoom.roomID;
+    }
 
-    public void handleDMMessage(String msg)
-    {
-        JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
-        String cmd = msg_jo.get("cmd").getAsString();
-        //System.out.println("[Raiix] get a cmd: " + cmd);
-        if (cmd.equals("DANMU_MSG")) {
-            JsonArray info = msg_jo.get("info").getAsJsonArray();
-            String danmu_msg = info.get(1).getAsString();
-            if(!validateDanMu(danmu_msg))
-            {
-//                                    thePlugin.theLogger.info("Receive a danmu but blocked due to the black list policy." + danmu_msg);
-                return;
+    public JsonObject getJsonFromURL(String url) throws IOException {
+        try {
+            URL urlObj = new URL(url);
+            HttpURLConnection con = (HttpURLConnection) urlObj.openConnection();
+
+            con.setRequestMethod("GET");
+            con.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+            int code = con.getResponseCode();
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "utf-8"));
+            String line;
+            StringBuilder res = new StringBuilder();
+
+            while ((line = in.readLine()) != null) {
+                res.append(line);
             }
-            String danmu_authur = info.get(2).getAsJsonArray().get(1).getAsString();
-            int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
+            in.close();
 
-            //String danmu = String.format("[弹幕][UL%d]<%s>: %s", u_level, danmu_authur, danmu_msg);
-
-            //System.out.println(danmu);
-
-            // Get room config
-            Config rc = thePlugin.theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-            {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(rc.roomConfigs.get(theRoom.roomID) != null)
-            {
-                rc = rc.roomConfigs.get(theRoom.roomID);
-                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                {
-                    mapStr.put(e.getKey(), e.getValue());
-                }
-            }
-            mapStr.put("uLevel", String.valueOf(u_level));
-            mapStr.put("danmuAuthur", danmu_authur);
-            mapStr.put("danmuMsg", danmu_msg);
-            mapStr.put("roomTitle", theRoom.roomTitle);
-            mapStr.put("roomOwner", theRoom.ownerName);
-
-            // Parse styled msg
-            Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.chat_dm_style, mapStr);
-//            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-            theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
-        } else if (cmd.equals("SEND_GIFT")) {
-            JsonObject data = msg_jo.get("data").getAsJsonObject();
-
-            String giftName = data.get("giftName").getAsString();
-            int num = data.get("num").getAsInt();
-            String uname = data.get("uname").getAsString();
-            String actionName = data.get("action").getAsString();
-
-//                                String gift_msg = String.format("[礼物] %s%s%d个%s", uname, actionName, num, giftName);
-
-
-
-//                                System.out.println("[Raiix] " + uname + " has sent a gift!");
-
-            // Get room config
-            Config rc = thePlugin.theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-            {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(rc.roomConfigs.get(theRoom.roomID) != null)
-            {
-                rc = rc.roomConfigs.get(theRoom.roomID);
-                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                {
-                    mapStr.put(e.getKey(), e.getValue());
-                }
-            }
-            mapStr.put("danmuAuthur", uname);
-            mapStr.put("num", String.valueOf(num));
-            mapStr.put("actionName", actionName);
-            mapStr.put("giftName", giftName);
-            mapStr.put("roomTitle", theRoom.roomTitle);
-            mapStr.put("roomOwner", theRoom.ownerName);
-
-            // Parse styled msg
-            Text theDanmuText = DMClientThreadRun.mapStringToStyledText(rc.gift_dm_style, mapStr);
-//            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-            theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+            if (code != 200) return null;
+            JsonObject resData = (new JsonParser()).parse(res.toString()).getAsJsonObject();
+            return resData;
+        } catch (Exception e) {
+            throw e;
         }
-//                            else if (cmd.equals("PREPARING")) {
-//                                //System.out.println("[Raiix] live is preparing...");
-//                            } else if (cmd.equals("LIVE")) {
-//                                //System.out.println("[Raiix] live is started!");
-//                            } else if (cmd.equals("GUARD_MSG")) {
-//
-//                            }
     }
 
+    public String connect(){
+        String roomID = theRoom.roomID;
+
+        try {
+            JsonObject resData = getJsonFromURL(confURL + roomID);
+            if(resData == null)
+            {
+                thePlugin.getTheLogger().warning("Try to get info of " + roomID + " fail!");
+                return "未找到" + roomID + "房间，" + "请确认房间号是否正确！";
+            }
+
+            token = resData.get("data").getAsJsonObject().get("token").getAsString();
+            host = resData.get("data").getAsJsonObject().get("host").getAsString();
+            port = Integer.parseInt(resData.get("data").getAsJsonObject().get("port").getAsString());
+
+            // Now connect to the actual danmu server
+            new Thread((Runnable) this, "BiliBiliDMClientThread").start();
+
+            // Last, get some info of the room
+            resData = getJsonFromURL(roomInfoURL + roomID);
+            if(resData != null && resData.isJsonObject())
+            {
+                //theLogger.info("[room" + roomID + "]:" + resData.toString());
+                theRoom.ownerName = resData.get("data").getAsJsonObject().get("anchor_info").getAsJsonObject().get("base_info").getAsJsonObject().get("uname").getAsString();
+                theRoom.roomTitle = resData.get("data").getAsJsonObject().get("room_info").getAsJsonObject().get("title").getAsString();
+            }else
+            {
+                thePlugin.getTheLogger().warning("Get info of room " + roomID + " fail!");
+            }
+
+        } catch (Exception e) {
+            thePlugin.getTheLogger().error("request fail!");
+//            e.printStackTrace();
+//            thePlugin.getRooms().put(roomID, null);
+            thePlugin.onClientNeedToBeDisconnect(theRoom.roomID);
+            return "连接弹幕服务器失败，请重新尝试！";
+        }
+        return "";
+    }
 
     public void disconnect() throws IOException {
         if (clientSocket == null || !clientSocket.isConnected() || clientSocket.isClosed()) return;
         clientSocket.close();
-        System.out.println("Disconnected with dm server.");
-//        theRoom.theMinecraftServer.getPlayerManager().sendToAll(new TranslatableText("已经与直播房间("+theRoom.roomID+")断开连接!"));
-        theRoom.theMinecraftServer.getPlayerManager().broadcastChatMessage(new TranslatableText("已经与直播房间("+theRoom.roomID+")断开连接!"), MessageType.CHAT, Util.NIL_UUID);
+        theRoom.state = RaiixDMServerRoom.State.Disconnected;
+        thePlugin.getTheLogger().info("Disconnected with dm server.");
+        thePlugin.broadcastMessage("已经与直播房间("+theRoom.roomID+")断开连接!");
+    }
+
+    public void printBytes(byte[] bs, int start, int size) {
+        StringBuffer sb = new StringBuffer();
+        sb.append("[");
+        for (int i = start; i < start + size; ++i) {
+            sb.append(Integer.toHexString(bs[i] & 0xff));
+            if (i < start + size - 1) sb.append(',');
+        }
+        sb.append("]");
+        thePlugin.getTheLogger().info(sb.toString());
+    }
+
+    public boolean isWorking(){
+        return working && clientSocket != null && clientSocket.isConnected() && !clientSocket.isClosed();
+    }
+
+
+
+    public int getMatchBlanket(String s, int i){
+        int cnt=1;
+        for (;i<s.length();++i)
+        {
+            if(s.charAt(i) == '{') cnt += 1;
+            if(s.charAt(i) == '}') cnt -= 1;
+            if(cnt == 0) return i;
+        }
+        return -1;
+    }
+    public ArrayList<String> divideAllJsonObjects(String rawStr){
+        ArrayList<String> res = new ArrayList<>();
+
+        int pos = 0;
+        while(pos < rawStr.length()){
+            if(rawStr.charAt(pos) == '{')
+            {
+                int mPos = getMatchBlanket(rawStr, pos+1);
+                if(mPos == -1) break;
+                if(pos >= mPos) break;
+                String msg = rawStr.substring(pos, mPos+1);
+                res.add(msg);
+//                thePlugin.theLogger.info("pos("+pos+"): " + msg);
+                pos = mPos;
+            }
+            pos += 1;
+        }
+        return res;
     }
 
     @Override
@@ -231,13 +261,14 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
         try {
             clientSocket = new Socket(host, port);
             if (clientSocket.isConnected() && !clientSocket.isInputShutdown()) {
-                System.out.println("[Raiix] Connect to danmu server successfully!");
-                System.out.println("[Raiix] Sending join msg...");
+                thePlugin.getTheLogger().info("[Raiix] Connect to danmu server successfully!");
+                thePlugin.getTheLogger().info("[Raiix] Sending join msg...");
 
                 Random r = new Random();
                 long tempuid = (long) (1e14 + 2e14 * r.nextDouble());
 //                String joinMsg = "{\"roomid\":" + getRoomId() + ", \"uid\":" + tempuid + "}";
                 String joinMsg = "{\"roomid\": " + getRoomId() + ", \"uid\": 0, \"protover\": 2, \"token\": \"" + token + "\", \"platform\": \"RaiixDM Server\"}";
+//                thePlugin.theLogger.info("join msg: " + joinMsg);
                 sendSocketData(7, joinMsg);
 
 
@@ -251,12 +282,12 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                                 Thread.sleep(30000);
                             }
                         } catch (Exception e) {
-                            System.out.println("[Raiix heartbeat loop] error:\n" + e.toString());
+                            thePlugin.getTheLogger().error("[Raiix heartbeat loop] error:\n" + e.toString());
                         }
                     }
                 }).start();
             } else {
-                System.out.println("[Raiix] Connect to danmu server Fail!");
+                thePlugin.getTheLogger().error("[Raiix] Connect to danmu server Fail!");
             }
             byte[] stableBuffer = new byte[clientSocket.getReceiveBufferSize()];
             byte[] msgBuffer = new byte[clientSocket.getReceiveBufferSize()];
@@ -267,6 +298,7 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                 //read dan mu
                 InputStream in = clientSocket.getInputStream();
                 int size = in.read(stableBuffer);
+//                thePlugin.theLogger.info("Receive a data, size: " + size);
 
                 if (size > 0) {
                     //System.out.println("[Raiix] got a package from server...");
@@ -280,8 +312,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                         error_cnt += 1;
                         if(error_cnt >= 10)
                         {
-                            sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(0)!");
-                            System.out.println("[Raiix] Wrong packet size");
+                            thePlugin.sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(0)!", theRoom.theClient);
+                            thePlugin.getTheLogger().error("[Raiix] Wrong packet size");
                             working = false;
                             break;
                         }
@@ -299,13 +331,13 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 
                     //action
                     int action = bytesToInt(stableBuffer, bufferPos);
-                    //System.out.println("[Raiix] Read action: " + action);
+//                    System.out.println("[Raiix] Read action: " + action);
                     bufferPos += 4;
 
                     // params
                     int bodyLength = packetLength - 16;
                     if (bodyLength == 0) {
-                        //System.out.println("[Raiix] this package does not have a msg body");
+//                        System.out.println("[Raiix] this package does not have a msg body");
                         continue;
                     }
                     bufferPos += 4;
@@ -316,8 +348,8 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                         case 1:
                         case 2:
                         case 3: {
-                            //System.out.println("[Raiix] get viewer: " + viewer);
                             theRoom.viewerNumber = bytesToInt(stableBuffer, bufferPos);
+//                            System.out.println("[Raiix] get viewer: " + theRoom.viewerNumber);
                             break;
                         }
                         case 4:
@@ -336,19 +368,20 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                             }
 
                             String msg = new String(msgBuffer, 0, decompressed_size, "utf-8");
+//                            System.out.println("[Raiix] get a dan mu: \n" + msg);
                             ArrayList<String> msgs = divideAllJsonObjects(msg);
                             for(String m:msgs){
-                                handleDMMessage(m);
+                                thePlugin.handleDMMessage(m, this);
                             }
-
                             break;
                         }
                         case 6: {
                             break;
                         }
                         case 8: {
-                            System.out.println("DM server responded!");
-                            sendChatMessageToTheExecutor("连接至" + getRoomId() + "房间成功！");
+                            thePlugin.getTheLogger().info("DM server responded!");
+                            theRoom.state = RaiixDMServerRoom.State.Connected;
+                            thePlugin.sendChatMessageToTheExecutor("连接至" + getRoomId() + "房间成功！", theRoom.theClient);
                             break;
                         }
                         case 17: {
@@ -356,7 +389,7 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
 
                         }
                         default: {
-                            System.out.println("Unknown Action...");
+                            thePlugin.getTheLogger().info("Unknown Action...");
                             break;
                         }
                     }
@@ -364,18 +397,20 @@ public class BiliBiliDMClientThreadRun extends DMClientThreadRun implements Runn
                     error_cnt += 1;
                     if(error_cnt >= 10)
                     {
-                        sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(1)!");
-                        System.out.println("[Raiix] Wrong buffer size");
+                        thePlugin.sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(1)!", theRoom.theClient);
+                        thePlugin.getTheLogger().error("[Raiix] Wrong buffer size");
                         working = false;
                         break;
                     }
                 }
             }
         } catch (Exception e) {
-            System.out.println("[Raiix] Error happened!\n" + e.toString());
+            thePlugin.getTheLogger().error("[Raiix] Error happened!\n" + e.toString());
             //sendChatMessageToTheExecutor("[RaiixDM] Connect to dm server fail(1)!");
         } finally {
-            thePlugin.disconnectDMServer(theRoom.roomID);
+            thePlugin.onClientNeedToBeDisconnect(theRoom.roomID);
         }
     }
+
+
 }

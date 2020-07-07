@@ -19,18 +19,19 @@ import net.minecraft.util.Formatting;
 import java.util.Map;
 import java.util.Set;
 
-public class DMSGetCommand {
+public class DMSGetCommand extends RaiixDMSCommand {
     private static final String name = "dmsget";
 
-    private RaiixDMServer theMod;
     public DMSGetCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSGetCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName())
@@ -40,7 +41,7 @@ public class DMSGetCommand {
                                             String[] args = new String[3];
                                             args[0] = StringArgumentType.getString(commandContext, "roomID");
                                             args[1] = StringArgumentType.getString(commandContext, "key");
-                                            execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), args);
+                                            execute(commandContext.getSource().getEntity(), args);
                                             return Command.SINGLE_SUCCESS;
                                         })
                                 ))
@@ -48,7 +49,8 @@ public class DMSGetCommand {
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         if(args.length < 2) return;
 
@@ -59,7 +61,7 @@ public class DMSGetCommand {
 
             Config roomConfig = theMod.theConfigHelper.getConfig();
             String value = roomConfig.get(key);
-            sendFeedBack(cc,
+            sendFeedback(sender,
                     new TranslatableText("默认" + args[0] + " \"" + key +"\" 的值为 \"").setStyle(Style.EMPTY.withColor(Formatting.WHITE))
                     .append(new TranslatableText(value).setStyle(Style.EMPTY.withColor(Formatting.GOLD)))
                     .append(new TranslatableText("\"").setStyle(Style.EMPTY.withColor(Formatting.WHITE)))
@@ -71,21 +73,11 @@ public class DMSGetCommand {
             Config roomConfig = theMod.theConfigHelper.getConfig().roomConfigs.get(args[0]);
             if(roomConfig == null)
             {
-                sendFeedBack(cc, new TranslatableText("未找到房间" + args[0] + " 的配置信息!").setStyle(Style.EMPTY.withColor(Formatting.RED)));
+                sendFeedback(sender, new TranslatableText("未找到房间" + args[0] + " 的配置信息!").setStyle(Style.EMPTY.withColor(Formatting.RED)));
                 return;
             }
             String value = roomConfig.get(key);
-            sendFeedBack(cc, "房间" + args[0] + " \"" + key +"\" 的值设为 \""+ value + "\"");
+            sendFeedback(sender, "房间" + args[0] + " \"" + key +"\" 的值设为 \""+ value + "\"");
         }
-    }
-
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, Text msg)
-    {
-        cc.getSource().sendFeedback(msg, false);
-    }
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, String msg)
-    {
-
-        sendFeedBack(cc, new TranslatableText(msg));
     }
 }

@@ -19,31 +19,33 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 
-public class DMSReloadCommand {
+public class DMSReloadCommand extends RaiixDMSCommand {
     private static final String name = "dmsreload";
 
-    private RaiixDMServer theMod;
     public DMSReloadCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSReloadCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName()).requires((source)->source.hasPermissionLevel(4)).executes((commandContext) -> {
-                    execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), null);
+                    execute(commandContext.getSource().getEntity(), null);
                     return Command.SINGLE_SUCCESS;
                 })
         );
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         theMod.theConfigHelper.loadConfig();
-        cc.getSource().sendFeedback(new TranslatableText("已重新加载RaiixDMServer的配置文件").setStyle(Style.EMPTY.withColor(Formatting.WHITE)), true);
+        sendFeedback(sender, new TranslatableText("已重新加载RaiixDMServer的配置文件").setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
     }
 }
