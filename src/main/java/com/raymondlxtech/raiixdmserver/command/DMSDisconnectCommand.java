@@ -63,9 +63,9 @@ public class DMSDisconnectCommand extends RaiixDMSCommand {
         if(args.length < 1) return;
         try {
             String roomID = args[0];
+            theMod.disconnectDMServer(args[0]);
             if(!roomID.equals("all"))
                 theMod.theRooms.put(roomID, null);
-            theMod.disconnectDMServer(args[0]);
         } catch (Exception e)
         {
             e.printStackTrace();
