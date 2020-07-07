@@ -4,6 +4,10 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.raymondlxtech.raiixdmserver.RaiixDMServer;
 import com.raymondlxtech.raiixdmserver.RaiixDMServerRoom;
 import com.raymondlxtech.raiixdmserver.config.Config;
@@ -16,34 +20,89 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
-public class DMSSetCommand {
+public class DMSSetCommand extends RaiixDMSCommand {
     private static final String name = "dmsset";
 
-    private RaiixDMServer theMod;
     public DMSSetCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    public List<String> getRoomConfigProperties(String roomID){
+        List<String> res = new LinkedList<>();
+        if(roomID.equals("default") || roomID.equals("all")){
+            res.addAll(theMod.theConfigHelper.getConfig().getProperties());
+        }else{
+            Config roomConfig = theMod.theConfigHelper.getConfig().roomConfigs.get(roomID);
+            if(roomConfig != null){
+                res.addAll(roomConfig.getProperties());
+            }else{
+                res.addAll(theMod.theConfigHelper.getConfig().getProperties());
+            }
+        }
+        return res;
+    }
+
+    @Override
     public String getName(){return name;}
 
-    public DMSSetCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName())
                         .then(CommandManager.argument("roomID", StringArgumentType.string())
+                                .suggests(new SuggestionProvider<ServerCommandSource>() {
+                                    @Override
+                                    public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                        for(String roomID:theMod.theRooms.keySet())
+                                        {
+                                            builder.suggest(roomID);
+                                        }
+                                        builder.suggest("default");
+                                        builder.suggest("all");
+                                        return builder.buildFuture();
+                                    }
+                                })
                                 .then(CommandManager.argument("key", StringArgumentType.string())
+                                        .suggests(new SuggestionProvider<ServerCommandSource>() {
+                                            @Override
+                                            public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                                String roomID = StringArgumentType.getString(context, "roomID");
+                                                for(String p:getRoomConfigProperties(roomID)){
+                                                    builder.suggest(p);
+                                                }
+                                                return builder.buildFuture();
+                                            }
+                                        })
                                         .then(CommandManager.argument("value", StringArgumentType.string())
+                                                .suggests(new SuggestionProvider<ServerCommandSource>() {
+                                                    @Override
+                                                    public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                                        String roomID = StringArgumentType.getString(context, "roomID");
+                                                        String propertyName = StringArgumentType.getString(context, "key");
+                                                        List<String> properties = getRoomConfigProperties(roomID);
+                                                        if(properties.contains(propertyName))
+                                                        {
+                                                            for(String p:theMod.theConfigHelper.getConfig().getPropertyOptionValues(propertyName))
+                                                            {
+                                                                builder.suggest(p);
+                                                            }
+                                                        }else{
+                                                            builder.suggest("<Custom>");
+                                                        }
+                                                        return builder.buildFuture();
+                                                    }
+                                                })
                                                 .executes((commandContext) -> {
                                                     String[] args = new String[3];
                                                     args[0] = StringArgumentType.getString(commandContext, "roomID");
                                                     args[1] = StringArgumentType.getString(commandContext, "key");
                                                     args[2] = StringArgumentType.getString(commandContext, "value");
-                                                    execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), args);
+                                                    execute(commandContext.getSource().getEntity(), args);
                                                     return Command.SINGLE_SUCCESS;
                                                 }))))
 
@@ -51,7 +110,8 @@ public class DMSSetCommand {
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         if(args.length < 3) return;
 
@@ -61,10 +121,10 @@ public class DMSSetCommand {
             for(Map.Entry<String, RaiixDMServerRoom> r : kr)
             {
                 args[0] = r.getKey();
-                execute(cc, server, sender, args);
+                execute(sender, args);
             }
             args[0] = "default";
-            execute(cc, server, sender, args);
+            execute(sender, args);
         }else if(args[0].equals("default"))
         {
             String key = args[1];
@@ -72,7 +132,7 @@ public class DMSSetCommand {
 
             Config roomConfig = theMod.theConfigHelper.getConfig();
             roomConfig.set(key, value);
-            sendFeedBack(cc, "已将默认" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
+            sendFeedback(sender, "已将默认" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
         }
         else
         {
@@ -86,19 +146,9 @@ public class DMSSetCommand {
                 theMod.theConfigHelper.getConfig().roomConfigs.put(args[0], roomConfig);
             }
             roomConfig.set(key, value);
-            sendFeedBack(cc, "已将房间" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
+            sendFeedback(sender, "已将房间" + args[0] + " \"" + args[1] +"\" 的值设为 \""+ args[2] + "\"");
         }
 
         theMod.theConfigHelper.saveConfig();
-    }
-
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, Text msg)
-    {
-        cc.getSource().sendFeedback(msg, false);
-    }
-    public void sendFeedBack(CommandContext<ServerCommandSource> cc, String msg)
-    {
-
-        sendFeedBack(cc, new TranslatableText(msg));
     }
 }
