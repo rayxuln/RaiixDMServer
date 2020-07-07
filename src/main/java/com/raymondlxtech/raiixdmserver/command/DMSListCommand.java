@@ -17,29 +17,31 @@ import net.minecraft.util.Formatting;
 
 import java.util.*;
 
-public class DMSListCommand {
+public class DMSListCommand extends RaiixDMSCommand {
     private static final String name = "dmslist";
 
-    private RaiixDMServer theMod;
     public DMSListCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSListCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
                 CommandManager.literal(getName()).executes((commandContext) -> {
-                    execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), null);
+                    execute(commandContext.getSource().getEntity(), null);
                     return Command.SINGLE_SUCCESS;
                 })
         );
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         Set<Map.Entry<String, RaiixDMServerRoom>> rooms = theMod.theRooms.entrySet();
         ArrayList<Text> msg = new ArrayList<>();
@@ -52,13 +54,22 @@ public class DMSListCommand {
         for(Map.Entry<String, RaiixDMServerRoom> kr : rooms)
         {
             RaiixDMServerRoom r = kr.getValue();
-            if(r == null)
+            if(r == null || r.theClient == null || !r.theClient.isWorking())
             {
-                msg.add(
-                        new TranslatableText("[").setStyle(new Style().setColor(Formatting.WHITE))
-                                .append(new TranslatableText(kr.getKey()).setStyle(new Style().setColor(Formatting.RED)))
-                                .append(new TranslatableText("] 已断开！").setStyle(new Style().setColor(Formatting.WHITE)))
-                );
+                if(r != null && r.state == RaiixDMServerRoom.State.Reconnecting)
+                {
+                    msg.add(
+                            new TranslatableText("[").setStyle(new Style().setColor(Formatting.WHITE))
+                                    .append(new TranslatableText(kr.getKey()).setStyle(new Style().setColor(Formatting.RED)))
+                                    .append(new TranslatableText("] 正在等待重新连接...").setStyle(new Style().setColor(Formatting.WHITE)))
+                    );
+                }else{
+                    msg.add(
+                            new TranslatableText("[").setStyle(new Style().setColor(Formatting.WHITE))
+                                    .append(new TranslatableText(kr.getKey()).setStyle(new Style().setColor(Formatting.RED)))
+                                    .append(new TranslatableText("] 已断开！").setStyle(new Style().setColor(Formatting.WHITE)))
+                    );
+                }
             }else
             {
                 msg.add(
@@ -69,6 +80,6 @@ public class DMSListCommand {
             }
         }
 
-        for(Text t : msg) cc.getSource().sendFeedback(t, false);
+        for(Text t : msg) sendFeedback(sender, t);
     }
 }

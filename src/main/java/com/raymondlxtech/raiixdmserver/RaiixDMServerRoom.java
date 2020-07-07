@@ -1,16 +1,21 @@
 package com.raymondlxtech.raiixdmserver;
 
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.entity.Entity;
 
 public class RaiixDMServerRoom {
     public String ownerName = "Unknown";
     public String roomID = "-1";
     public String roomTitle = "Unknown Title";
 
-    public RaiixDMServer theMod;
+    public BiliBiliDMClient theClient;
+    public Entity theExecutor;
 
-    public DMClientThreadRun theClient;
-    public MinecraftServer theMinecraftServer;
+    public enum State{
+        Connected,
+        Disconnected,
+        Reconnecting
+    }
+    public State state = State.Disconnected;
 
     public int viewerNumber = 0;
 }

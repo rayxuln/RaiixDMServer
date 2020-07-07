@@ -4,7 +4,12 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.raymondlxtech.raiixdmserver.RaiixDMServer;
+import com.raymondlxtech.raiixdmserver.RaiixDMServerRoom;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -15,44 +20,59 @@ import net.minecraft.text.Style;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 
-public class DMSConnectCommand {
+import java.util.concurrent.CompletableFuture;
+
+public class DMSConnectCommand extends RaiixDMSCommand {
     private static final String name = "dmsconnect";
 
-    private RaiixDMServer theMod;
     public DMSConnectCommand(RaiixDMServer m)
     {
-        theMod = m;
+        super(m);
     }
 
+    @Override
     public String getName(){return name;}
 
-    public DMSConnectCommand registry(CommandDispatcher theDispatcher)
+    @Override
+    public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
-                CommandManager.literal(getName()).then(CommandManager.argument("roomID", StringArgumentType.greedyString()).executes((commandContext) -> {
-                    String[] args = new String[1];
-                    args[0] = StringArgumentType.getString(commandContext, "roomID");
-                    try {
-                        new Thread(new Runnable() {
+                CommandManager.literal(getName()).then(CommandManager.argument("roomID", StringArgumentType.greedyString())
+                        .suggests(new SuggestionProvider<ServerCommandSource>() {
                             @Override
-                            public void run() {
-                                execute(commandContext, commandContext.getSource().getMinecraftServer(), commandContext.getSource().getEntity(), args);
+                            public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+                                for (RaiixDMServerRoom room:theMod.theRooms.values()) {
+                                    if(room.state != RaiixDMServerRoom.State.Connected)
+                                        builder.suggest(room.roomID);
+                                }
+                                return builder.buildFuture();
                             }
-                        }).start();
-                    }catch (Exception e)
-                    {
-                        e.printStackTrace();
-                    }
-                    return Command.SINGLE_SUCCESS;
-                }))
+                        })
+                        .executes((commandContext) -> {
+                            String[] args = new String[1];
+                            args[0] = StringArgumentType.getString(commandContext, "roomID");
+                            try {
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        execute(commandContext.getSource().getEntity(), args);
+                                    }
+                                }).start();
+                            }catch (Exception e)
+                            {
+                                e.printStackTrace();
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        }))
         );
         return this;
     }
 
-    public void execute(CommandContext<ServerCommandSource> cc, MinecraftServer server, Entity sender, String[] args)
+    @Override
+    public void execute(Entity sender, String[] args)
     {
         if(args.length < 1) return;
-        String error_msg = theMod.connectBiliBiliDMServer(args[0], sender, server);
+        String error_msg = theMod.connectBiliBiliDMServer(args[0], sender);
         if(!error_msg.isEmpty())
         {
 //            if(sender == null)
@@ -62,7 +82,7 @@ public class DMSConnectCommand {
 //            {
 //                sender.sendMessage(new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)));
 //            }
-            cc.getSource().sendFeedback(new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)), true);
+            sendFeedback(sender, new TranslatableText(error_msg).setStyle(new Style().setColor(Formatting.RED)));
         }
     }
 }

@@ -1,5 +1,5 @@
 # RaiixDMServer For Minecraft Fabric
-![Java CI](https://github.com/rayxuln/RaiixDMServer/workflows/Java%20CI/badge.svg?branch=1.15.2)
+![Java CI](https://github.com/rayxuln/RaiixDMServer/workflows/Java%20CI/badge.svg?branch=1.16.1)
 
 ## 特性
 - 接收B站直播弹幕
@@ -39,6 +39,14 @@
 ### dmsreload
 
 重新加载配置文件，需要op4权限
+
+### dmsaddroom 房间号
+
+添加房间，不连接
+
+### dmsremoveroom 房间号/all
+
+删除房间
 
 ## 自定义弹幕帮助
 
