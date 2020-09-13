@@ -43,7 +43,7 @@ public class DMSPreviewCommand extends RaiixDMSCommand {
     public RaiixDMSCommand registry(CommandDispatcher theDispatcher)
     {
         theDispatcher.register(
-                CommandManager.literal(getName()).then(CommandManager.argument("type", StringArgumentType.greedyString())
+                CommandManager.literal(getName()).then(CommandManager.argument("type", StringArgumentType.string())
                         .suggests(new SuggestionProvider<ServerCommandSource>() {
                             @Override
                             public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
@@ -54,7 +54,7 @@ public class DMSPreviewCommand extends RaiixDMSCommand {
                                 return builder.buildFuture();
                             }
                         })
-                        .then(CommandManager.argument("roomID", StringArgumentType.greedyString())
+                        .then(CommandManager.argument("roomID", StringArgumentType.string())
                                 .suggests(new SuggestionProvider<ServerCommandSource>() {
                                     @Override
                                     public CompletableFuture<Suggestions> getSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) throws CommandSyntaxException {
@@ -69,7 +69,7 @@ public class DMSPreviewCommand extends RaiixDMSCommand {
                                     }
                                 })
                                 .executes((commandContext) -> {
-                                    String[] args = new String[1];
+                                    String[] args = new String[2];
                                     args[0] = StringArgumentType.getString(commandContext, "type");
                                     args[1] = StringArgumentType.getString(commandContext, "roomID");
                                     execute(commandContext.getSource().getEntity(), args);
