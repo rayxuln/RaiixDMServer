@@ -55,6 +55,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
     public RaiixDMSCommand dmsReloadCommand;
     public RaiixDMSCommand dmsAddRoomCommand;
     public RaiixDMSCommand dmsRemoveRoomCommand;
+    public RaiixDMSCommand dmsPreviewCommand;
 
     public RaiixDMServer() {
         theConfigHelper = new ConfigHelper(this);
@@ -83,6 +84,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             dmsReconnectCommand = new DMSReconnectCommand(this).registry(dispatcher);
             dmsRemoveRoomCommand = new DMSRemoveRoomCommand(this).registry(dispatcher);
             dmsAddRoomCommand = new DMSAddRoomCommand(this).registry(dispatcher);
+            dmsPreviewCommand = new DMSPreviewCommand(this).registry(dispatcher);
 
             loadAddedRooms();
         });
