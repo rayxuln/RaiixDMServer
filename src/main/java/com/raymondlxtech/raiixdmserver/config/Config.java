@@ -19,9 +19,9 @@ public class Config{
     @OptionValues(value = {"bilibili"})
     public String platform = "bilibili";
 
-    @OptionValues(value = {"%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}"})
+    @OptionValues(value = {"\"%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}\""})
     public String chat_dm_style = "%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}";
-    @OptionValues(value = {"%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}"})
+    @OptionValues(value = {"\"%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}\""})
     public String gift_dm_style = "%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}";
 
 

@@ -176,6 +176,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
         JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
         String cmd = msg_jo.get("cmd").getAsString();
         //System.out.println("[Raiix] get a cmd: " + cmd);
+        //System.out.println("[RaiixDebug] msg: " + msg);
         if (cmd.equals("DANMU_MSG")) {
             JsonArray info = msg_jo.get("info").getAsJsonArray();
             String danmu_msg = info.get(1).getAsString();
@@ -336,7 +337,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
     public static Text mapStringToStyledText(String style, HashMap<String, String> mapStr)
     {
-        return new StyleParser().parse(style, mapStr);
+        return new StyleParserV2().parse(style, mapStr);
     }
 
     public void sendChatMessageToTheExecutor(Text msg, BiliBiliDMClient client) {
@@ -354,6 +355,14 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
          *     _colorPattern := % _letters %
          *     _keyPattern := {{ _letters }}
          */
+
+        /*
+        *      _styleString := _colorPattern | _keyPattern | _plainString | _styleString _colorPattern | _styleString _keyPattern | _styleString _plainString
+        *      _plainString := _plainChar | _plainString _plainChar
+        *      _plainChar := \{ | \% | [^{%]
+        *      _colorPattern := % _letters %
+        *      _keyPattern := { _styleString { _letters } _styleString } | { _styleString { ! _letters } _styleString }
+        */
 
         private class WrongPatternException extends Exception {
             public WrongPatternException(String s) {
@@ -515,6 +524,142 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 return;
             }
             throw new StyleParser.WrongPatternException("missmatch with " + c);
+        }
+    }
+
+    private static class StyleParserV2{
+        /*
+         *      _styleString := _colorPattern | _keyPattern | _plainString | _styleString _colorPattern | _styleString _keyPattern | _styleString _plainString
+         *      _plainString := _plainChar | _plainString _plainChar
+         *      _plainChar := \{ | \} | \# | \% | \\ | [^{}%#]
+         *      _colorPattern := % _letters %
+         *      _keyPattern := { #_styleString# { _letters } #_styleString# } | { #_styleString# { ! _letters } #_styleString# }
+         */
+
+        private class WrongPatternException extends Exception {
+            public WrongPatternException(String s) {
+                super(s);
+            }
+        }
+
+        private String style;
+        private HashMap<String, String> mapStr;
+        private int next;
+        private MutableText result;
+        private Formatting currentColor;
+
+        public StyleParserV2()
+        {
+            next = 0;
+        }
+
+        public Text parse(String s, HashMap<String, String> ms)
+        {
+            result = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
+            currentColor = Formatting.WHITE;
+            style = s;
+            next = 0;
+            mapStr = ms;
+            styleString();
+            return result;
+        }
+
+        private boolean plainChar() {
+            if(style.charAt(next) == '\\')
+            {
+                if(next+1 < style.length() && style.charAt(next+1) == '{' || style.charAt(next+1) == '}' || style.charAt(next+1) == '%' || style.charAt(next+1) == '\\' || style.charAt(next+1) == '#')
+                {
+                    next += 2;
+                    return true;
+                }
+            }
+            if(style.charAt(next) == '{' || style.charAt(next) == '}' || style.charAt(next) == '%' || style.charAt(next) == '#')
+                return false;
+            next += 1;
+            return true;
+        }
+
+        private void plainString() {
+            int start = next;
+            while(plainChar());
+            int end = next;
+            System.out.println("[Style] found plain: " + style.substring(start, end));
+        }
+
+        private void letters(){
+            while(Character.isLetter(style.charAt(next)) || style.charAt(next) == '_' || Character.isDigit(style.charAt(next))) next += 1;
+        }
+
+        private void colorPattern()  throws StyleParserV2.WrongPatternException {
+            match('%');
+            int start = next;
+            letters();
+            int end = next;
+            System.out.println("[Style] found color: " + style.substring(start, end));
+            match('%');
+        }
+
+        private void keyPattern()  throws StyleParserV2.WrongPatternException {
+            match('{');
+            if(style.charAt(next) == '#')
+            {
+                match('#');
+                styleString();
+                match('#');
+            }
+            match('{');
+            if(style.charAt(next) == '!')
+            {
+                next += 1;
+                System.out.println("[Style] key inverse");
+            }
+            int start = next;
+            letters();
+            int end = next;
+            System.out.println("[Style] found key: " + style.substring(start, end));
+
+            match('}');
+            if(style.charAt(next) == '#')
+            {
+                match('#');
+                styleString();
+                match('#');
+            }
+            match('}');
+        }
+
+        private void styleString()
+        {
+            while(next < style.length() && style.charAt(next) != '#')
+            {
+                plainString();
+                if(next >= style.length()) break;
+                if(style.charAt(next) == '{')
+                {
+                    try{
+                        keyPattern();
+                    }catch (WrongPatternException e){System.out.println(e.getMessage());}
+                    catch (Exception e){e.printStackTrace();}
+                }
+                if(next >= style.length()) break;
+                if(style.charAt(next) == '%')
+                {
+                    try {
+                        colorPattern();
+                    }catch (WrongPatternException e){System.out.println(e.getMessage());}
+                    catch (Exception e){e.printStackTrace();}
+                }
+            }
+        }
+
+        private void match(char c) throws StyleParserV2.WrongPatternException
+        {
+            if(next < style.length() && style.charAt(next) == c)
+            {
+                next += 1;
+                return;
+            }
+            throw new StyleParserV2.WrongPatternException("missmatch with " + c);
         }
     }
 }
