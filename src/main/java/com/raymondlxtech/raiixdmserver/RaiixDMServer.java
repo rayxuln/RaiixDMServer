@@ -33,6 +33,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
+import java.util.regex.Pattern;
 
 
 public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
@@ -171,98 +172,159 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
     @Override
     public void handleDMMessage(String msg, BiliBiliDMClient client) {
-        JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
-        String cmd = msg_jo.get("cmd").getAsString();
-        //System.out.println("[Raiix] get a cmd: " + cmd);
-        //System.out.println("[RaiixDebug] msg: " + msg);
-        if (cmd.equals("DANMU_MSG")) {
-            JsonArray info = msg_jo.get("info").getAsJsonArray();
-            String danmu_msg = info.get(1).getAsString();
-            if(!validateDanMu(danmu_msg, client.theRoom.roomID))
-            {
+        try {
+            JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
+            String cmd = msg_jo.get("cmd").getAsString();
+            //System.out.println("[Raiix] get a cmd: " + cmd);
+            //System.out.println("[RaiixDebug] msg: " + msg);
+            if (cmd.equals("DANMU_MSG")) {
+                JsonArray info = msg_jo.get("info").getAsJsonArray();
+                //System.out.println("[danmu info]: " + info.toString());
+                String danmu_msg = info.get(1).getAsString();
+                if (!validateDanMu(danmu_msg, client.theRoom.roomID)) {
 //                                    thePlugin.theLogger.info("Receive a danmu but blocked due to the black list policy." + danmu_msg);
-                return;
-            }
-            String danmu_authur = info.get(2).getAsJsonArray().get(1).getAsString();
-            int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
+                    return;
+                }
+                String danmu_authur = info.get(2).getAsJsonArray().get(1).getAsString();
+                JsonArray fanBandInfo = info.get(3).getAsJsonArray();
 
-            //String danmu = String.format("[弹幕][UL%d]<%s>: %s", u_level, danmu_authur, danmu_msg);
+                int danmu_authur_fan_band_level = 0;
+                String danmu_authur_fan_band_name = "";
+                int danmu_authur_fan_guard_level = 0;
+                boolean hasFanBandInfo = false;
+                if (fanBandInfo.size() > 0) {
+                    danmu_authur_fan_band_level = info.get(3).getAsJsonArray().get(0).getAsInt();
+                    danmu_authur_fan_band_name = info.get(3).getAsJsonArray().get(1).getAsString();
+                    danmu_authur_fan_guard_level = info.get(3).getAsJsonArray().get(10).getAsInt();
+                    hasFanBandInfo = info.get(3).getAsJsonArray().get(11).getAsInt() != 0;
+                }
 
-            //System.out.println(danmu);
-
-            // Get room config
-            Config rc = theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-            {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(rc.roomConfigs.get(client.theRoom.roomID) != null)
-            {
-                rc = rc.roomConfigs.get(client.theRoom.roomID);
-                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                {
+                int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
+                // Get room config
+                Config rc = theConfigHelper.getConfig();
+                HashMap<String, String> mapStr = new HashMap<>();
+                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
                     mapStr.put(e.getKey(), e.getValue());
                 }
-            }
-            mapStr.put("uLevel", String.valueOf(u_level));
-            mapStr.put("danmuAuthur", danmu_authur);
-            mapStr.put("danmuMsg", danmu_msg);
-            mapStr.put("roomTitle", client.theRoom.roomTitle);
-            mapStr.put("roomOwner", client.theRoom.ownerName);
+                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
+                    rc = rc.roomConfigs.get(client.theRoom.roomID);
+                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                        mapStr.put(e.getKey(), e.getValue());
+                    }
+                }
+                mapStr.put("uLevel", String.valueOf(u_level));
+                mapStr.put("danmuAuthur", danmu_authur);
+                mapStr.put("danmuMsg", danmu_msg);
+                if (hasFanBandInfo) {
+                    mapStr.put("fanLevel", String.valueOf(danmu_authur_fan_band_level));
+                    mapStr.put("fanName", danmu_authur_fan_band_name);
+                    if (danmu_authur_fan_guard_level > 0) {
+                        mapStr.put("fanGuard", String.valueOf(danmu_authur_fan_guard_level));
+                    }
+                }
+                mapStr.put("roomTitle", client.theRoom.roomTitle);
+                mapStr.put("roomOwner", client.theRoom.ownerName);
 
-            // Parse styled msg
-            Text theDanmuText = mapStringToStyledText(rc.chat_dm_style, mapStr);
+                // Parse styled msg
+                Text theDanmuText = mapStringToStyledText(rc.chat_dm_style, mapStr);
 //            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-            theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
-        } else if (cmd.equals("SEND_GIFT")) {
-            JsonObject data = msg_jo.get("data").getAsJsonObject();
+                theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+            } else if (cmd.equals("SEND_GIFT")) {
+                JsonObject data = msg_jo.get("data").getAsJsonObject();
 
-            String giftName = data.get("giftName").getAsString();
-            int num = data.get("num").getAsInt();
-            String uname = data.get("uname").getAsString();
-            String actionName = data.get("action").getAsString();
+                String giftName = data.get("giftName").getAsString();
+                int num = data.get("num").getAsInt();
+                String uname = data.get("uname").getAsString();
+                String actionName = data.get("action").getAsString();
 
-//                                String gift_msg = String.format("[礼物] %s%s%d个%s", uname, actionName, num, giftName);
+                JsonObject fanInfo = data.get("medal_info").getAsJsonObject();
+                int fanLevel = fanInfo.get("medal_level").getAsInt();
+                String fanName = fanInfo.get("medal_name").getAsString();
+                boolean fanShow = fanInfo.get("is_lighted").getAsInt() != 0;
+                int fanGuardLevel = fanInfo.get("guard_level").getAsInt();
 
-
-
-//                                System.out.println("[Raiix] " + uname + " has sent a gift!");
-
-            // Get room config
-            Config rc = theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-            {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(rc.roomConfigs.get(client.theRoom.roomID) != null)
-            {
-                rc = rc.roomConfigs.get(client.theRoom.roomID);
-                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                {
+                // Get room config
+                Config rc = theConfigHelper.getConfig();
+                HashMap<String, String> mapStr = new HashMap<>();
+                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
                     mapStr.put(e.getKey(), e.getValue());
                 }
-            }
-            mapStr.put("danmuAuthur", uname);
-            mapStr.put("num", String.valueOf(num));
-            mapStr.put("actionName", actionName);
-            mapStr.put("giftName", giftName);
-            mapStr.put("roomTitle", client.theRoom.roomTitle);
-            mapStr.put("roomOwner", client.theRoom.ownerName);
+                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
+                    rc = rc.roomConfigs.get(client.theRoom.roomID);
+                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                        mapStr.put(e.getKey(), e.getValue());
+                    }
+                }
+                mapStr.put("danmuAuthur", uname);
+                mapStr.put("num", String.valueOf(num));
+                mapStr.put("actionName", actionName);
+                mapStr.put("giftName", giftName);
+                mapStr.put("roomTitle", client.theRoom.roomTitle);
+                mapStr.put("roomOwner", client.theRoom.ownerName);
+                if (fanShow) {
+                    mapStr.put("fanLevel", String.valueOf(fanLevel));
+                    mapStr.put("fanName", fanName);
+                    if (fanGuardLevel > 0) {
+                        mapStr.put("fanGuard", String.valueOf(fanGuardLevel));
+                    }
+                }
 
-            // Parse styled msg
-            Text theDanmuText = mapStringToStyledText(rc.gift_dm_style, mapStr);
+                // Parse styled msg
+                Text theDanmuText = mapStringToStyledText(rc.gift_dm_style, mapStr);
 //            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-            theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+                theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+            } else if (cmd.equals("INTERACT_WORD"))/// msg_type=1 => Enter room, 2 => Subscribe, guard_level > 0 =>
+            {
+                JsonObject data = msg_jo.get("data").getAsJsonObject();
+                String danmu_authur = data.get("uname").getAsString();
+                //System.out.println("[Welcome DM]" + danmu_authur + ": " + data.toString());
+                int msg_type = data.get("msg_type").getAsInt();
+
+                JsonObject fanInfo = data.get("fans_medal").getAsJsonObject();
+                int fanLevel = fanInfo.get("medal_level").getAsInt();
+                String fanName = fanInfo.get("medal_name").getAsString();
+                boolean fanShow = fanInfo.get("is_lighted").getAsInt() != 0;
+                int fanGuardLevel = fanInfo.get("guard_level").getAsInt();
+
+                // Get room config
+                Config rc = theConfigHelper.getConfig();
+                HashMap<String, String> mapStr = new HashMap<>();
+                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                    mapStr.put(e.getKey(), e.getValue());
+                }
+                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
+                    rc = rc.roomConfigs.get(client.theRoom.roomID);
+                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                        mapStr.put(e.getKey(), e.getValue());
+                    }
+                }
+                mapStr.put("danmuAuthur", danmu_authur);
+                if (fanShow) {
+                    mapStr.put("fanLevel", String.valueOf(fanLevel));
+                    mapStr.put("fanName", fanName);
+                    if (fanGuardLevel > 0) {
+                        mapStr.put("fanGuard", String.valueOf(fanGuardLevel));
+                    }
+                }
+                mapStr.put("roomTitle", client.theRoom.roomTitle);
+                mapStr.put("roomOwner", client.theRoom.ownerName);
+                if (msg_type == 1) // Enter room
+                {
+                    // Parse styled msg
+                    Text theDanmuText = mapStringToStyledText(rc.welcome_dm_style, mapStr);
+                    theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+                } else if (msg_type == 2) // Subscribe
+                {
+                    // Parse styled msg
+                    Text theDanmuText = mapStringToStyledText(rc.subscribe_dm_style, mapStr);
+                    theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+                }
+
+
+            }
+        }catch (Exception e){
+            e.printStackTrace();
         }
-//                            else if (cmd.equals("PREPARING")) {
-//                                //System.out.println("[Raiix] live is preparing...");
-//                            } else if (cmd.equals("LIVE")) {
-//                                //System.out.println("[Raiix] live is started!");
-//                            } else if (cmd.equals("GUARD_MSG")) {
-//
-//                            }
     }
 
     @Override
@@ -312,23 +374,15 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
         Config theConfig = theConfigHelper.getConfig();
         if(theConfig.roomConfigs.get(roomID) != null) theConfig = theConfig.roomConfigs.get(roomID);
 
-//        thePlugin.theLogger.info("Test with ["+dm+"] <=> ["+theConfig.black_dm+"].");
+        //System.out.println("Test with ["+dm+"] <=> ["+theConfig.black_dm+"].");
 
         if("white".equals(theConfig.mode.toLowerCase()))
         {
-            String[] words = theConfig.white_dm.split("\\|");
-            for (String w : words) {
-                if (dm.contains(w)){
-                    return true;
-                }
-            }
-            return  false;
+            return Pattern.matches(theConfig.white_dm, dm);
         }
-        String[] words = theConfig.black_dm.split("\\|");
-        for (String w: words) {
-            if(!w.isEmpty() && dm.contains(w)) {
-                return false;
-            }
+        if("black".equals(theConfig.mode.toLowerCase()))
+        {
+            return !Pattern.matches(theConfig.black_dm, dm);
         }
         return true;
     }
@@ -663,6 +717,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
         }
 
         private boolean plainChar() {
+            if(next >= style.length()) return false;
             if(style.charAt(next) == '\\')
             {
                 if(next+1 < style.length() && style.charAt(next+1) == '{' || style.charAt(next+1) == '}' || style.charAt(next+1) == '%' || style.charAt(next+1) == '\\' || style.charAt(next+1) == '#')
@@ -678,11 +733,12 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
         }
 
         private void plainString(StyleNode node) {
+            if(next >= style.length()) return;
             int start = next;
             while(plainChar());
             int end = next;
             String plain = style.substring(start, end);
-            System.out.println("[Style] found plain: " + plain);
+            //System.out.println("[Style] found plain: " + plain);
 
 
             PlainNode plainNode = new PlainNode(plain, currentStyle);
@@ -703,13 +759,13 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             letters();
             int end = next;
             String colorName = style.substring(start, end);
-            System.out.println("[Style] found color: " + colorName);
+            //System.out.println("[Style] found color: " + colorName);
             match('%');
 
             try {
                 currentStyle = currentStyle.withColor(strToColor(colorName));
             } catch (IllegalArgumentException ignored) {
-                PlainNode errorMsg = new PlainNode("<ERROR:wrong color name!>", Style.EMPTY.withColor(Formatting.RED));
+                PlainNode errorMsg = new PlainNode("<ERROR:wrong color name: " + colorName + "!>", Style.EMPTY.withColor(Formatting.RED));
                 node.add(errorMsg);
                 next = style.length();
             }
@@ -735,14 +791,14 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             {
                 next += 1;
                 isInverse = true;
-                System.out.println("[Style] key inverse");
+                //System.out.println("[Style] key inverse");
             }
 
             int start = next;
             letters();
             int end = next;
             String key = style.substring(start, end);
-            System.out.println("[Style] found key: " + key);
+            //System.out.println("[Style] found key: " + key);
             keyNode.setKey(key);
             keyNode.setInverse(isInverse);
             node.add(keyNode);
@@ -774,7 +830,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                     try{
                         keyPattern(node);
                     }catch (WrongPatternException e){
-                        PlainNode errorMsg = new PlainNode("<ERROR:wrong key pattern!>", Style.EMPTY.withColor(Formatting.RED));
+                        PlainNode errorMsg = new PlainNode("<ERROR:wrong key pattern! " + e.getMessage() + ">", Style.EMPTY.withColor(Formatting.RED));
                         node.add(errorMsg);
                         next = style.length();
                     }
@@ -785,7 +841,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                     try {
                         colorPattern(node);
                     }catch (WrongPatternException e){
-                        PlainNode errorMsg = new PlainNode("<ERROR:wrong color pattern!>", Style.EMPTY.withColor(Formatting.RED));
+                        PlainNode errorMsg = new PlainNode("<ERROR:wrong color pattern! " + e.getMessage() + ">", Style.EMPTY.withColor(Formatting.RED));
                         node.add(errorMsg);
                         next = style.length();
                     }
