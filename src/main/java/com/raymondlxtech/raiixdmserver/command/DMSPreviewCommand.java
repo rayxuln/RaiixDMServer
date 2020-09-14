@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 public class DMSPreviewCommand extends RaiixDMSCommand {
     private static final String name = "dmspreview";
 
-    String[] previewTypes = {"chat", "gift"};
+    String[] previewTypes = {"chat", "gift", "enter_room", "subscribe"};
 
     public DMSPreviewCommand(RaiixDMServer m)
     {
@@ -92,63 +92,73 @@ public class DMSPreviewCommand extends RaiixDMSCommand {
         if(args.length < 1) return;
 
         Text msg = null;
-        if(args[0].equals("chat"))
+        // Get room config
+        Config rc = theMod.theConfigHelper.getConfig();
+        HashMap<String, String> mapStr = new HashMap<>();
+        for(Map.Entry<String, String> e : rc.customKeys.entrySet())
         {
-            // Get room config
-            Config rc = theMod.theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
+            mapStr.put(e.getKey(), e.getValue());
+        }
+        if(args.length > 1){
+            String roomID = args[1];
+            if(rc.roomConfigs.get(roomID) != null)
             {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(args.length > 1){
-                String roomID = args[1];
-                if(rc.roomConfigs.get(roomID) != null)
+                rc = rc.roomConfigs.get(roomID);
+                for(Map.Entry<String, String> e : rc.customKeys.entrySet())
                 {
-                    rc = rc.roomConfigs.get(roomID);
-                    for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                    {
-                        mapStr.put(e.getKey(), e.getValue());
-                    }
+                    mapStr.put(e.getKey(), e.getValue());
                 }
             }
+        }
+        if(args[0].equals("chat"))
+        {
             mapStr.put("uLevel", "233");
             mapStr.put("danmuAuthur", "小电视");
             mapStr.put("danmuMsg", "哈喽哈喽，这是一条测试弹幕～");
             mapStr.put("roomTitle", "今晚大老虎");
             mapStr.put("roomOwner", "测试者");
+            mapStr.put("fanLevel", "2333");
+            mapStr.put("fanName", "粉丝牌");
+            mapStr.put("fanGuard", "3");
 
             // Parse styled msg
             msg = RaiixDMServer.mapStringToStyledText(rc.chat_dm_style, mapStr);
         }else if(args[0].equals("gift"))
         {
-            // Get room config
-            Config rc = theMod.theConfigHelper.getConfig();
-            HashMap<String, String> mapStr = new HashMap<>();
-            for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-            {
-                mapStr.put(e.getKey(), e.getValue());
-            }
-            if(args.length > 1){
-                String roomID = args[1];
-                if(rc.roomConfigs.get(roomID) != null)
-                {
-                    rc = rc.roomConfigs.get(roomID);
-                    for(Map.Entry<String, String> e : rc.customKeys.entrySet())
-                    {
-                        mapStr.put(e.getKey(), e.getValue());
-                    }
-                }
-            }
             mapStr.put("danmuAuthur", "小电视");
             mapStr.put("num", "233");
             mapStr.put("actionName", "塞");
             mapStr.put("giftName", "纯金小铜人");
             mapStr.put("roomTitle", "不错哟");
             mapStr.put("roomOwner", "测试者2");
+            mapStr.put("fanLevel", "2333");
+            mapStr.put("fanName", "粉丝牌");
+            mapStr.put("fanGuard", "3");
 
             // Parse styled msg
             msg = RaiixDMServer.mapStringToStyledText(rc.gift_dm_style, mapStr);
+        }else if(args[0].equals("enter_room"))
+        {
+            mapStr.put("danmuAuthur", "小电视");
+            mapStr.put("roomTitle", "不错哟");
+            mapStr.put("roomOwner", "测试者2");
+            mapStr.put("fanLevel", "2333");
+            mapStr.put("fanName", "粉丝牌");
+            mapStr.put("fanGuard", "3");
+
+            // Parse styled msg
+            msg = RaiixDMServer.mapStringToStyledText(rc.welcome_dm_style, mapStr);
+        }else if(args[0].equals("subscribe"))
+        {
+            mapStr.put("danmuAuthur", "小电视");
+            mapStr.put("roomTitle", "不错哟");
+            mapStr.put("roomOwner", "测试者2");
+            mapStr.put("fanLevel", "2333");
+            mapStr.put("fanName", "粉丝牌");
+            mapStr.put("fanGuard", "3");
+
+            // Parse styled msg
+            msg = RaiixDMServer.mapStringToStyledText(rc.subscribe_dm_style, mapStr);
         }
         if(msg != null)
         {
