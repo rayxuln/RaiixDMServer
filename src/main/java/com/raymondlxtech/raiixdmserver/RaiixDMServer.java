@@ -32,9 +32,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
@@ -356,14 +354,6 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
          *     _keyPattern := {{ _letters }}
          */
 
-        /*
-        *      _styleString := _colorPattern | _keyPattern | _plainString | _styleString _colorPattern | _styleString _keyPattern | _styleString _plainString
-        *      _plainString := _plainChar | _plainString _plainChar
-        *      _plainChar := \{ | \% | [^{%]
-        *      _colorPattern := % _letters %
-        *      _keyPattern := { _styleString { _letters } _styleString } | { _styleString { ! _letters } _styleString }
-        */
-
         private class WrongPatternException extends Exception {
             public WrongPatternException(String s) {
                 super(s);
@@ -542,11 +532,118 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             }
         }
 
+        private class StyleBaseNode{
+            protected Style style = Style.EMPTY;
+
+            public void setStyle(Style s){
+                style = s;
+            }
+
+            public Style getStyle(){
+                return style;
+            }
+        }
+
+        private interface IStyleNode{
+            Text execute();
+        }
+
+        private class StyleNode extends StyleBaseNode implements IStyleNode{
+            private Queue<IStyleNode> queue;
+
+            private KeyNode relatedNode;
+
+            public StyleNode(){
+                queue = new LinkedList<>();
+                relatedNode = null;
+            }
+
+            public StyleNode(KeyNode _r){
+                queue = new LinkedList<>();
+                relatedNode = _r;
+            }
+
+            public void add(IStyleNode n){
+                queue.offer(n);
+            }
+
+            @Override
+            public Text execute() {
+                if(relatedNode == null || (!relatedNode.inverse() && relatedNode.getValue() != null) || (relatedNode.inverse() && relatedNode.getValue() == null))
+                {
+                    MutableText res = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
+                    while(!queue.isEmpty())
+                    {
+                        IStyleNode n = queue.poll();
+                        res.append(n.execute());
+                    }
+                    return res;
+                }
+                return new TranslatableText("").setStyle(style);
+            }
+        }
+
+        private class KeyNode extends StyleBaseNode implements IStyleNode{
+
+            private String key;
+            private HashMap<String, String> mapStr;
+            private boolean isInverse;
+
+            public KeyNode(HashMap<String, String> _m, Style _s){
+                mapStr = _m;
+                style = _s;
+            }
+
+            private KeyNode() {
+            }
+
+            public void setKey(String _k){
+                key = _k;
+            }
+
+            public boolean inverse(){
+                return isInverse;
+            }
+            public void setInverse(boolean v){
+                isInverse = v;
+            }
+
+            private String getValue(){
+                if(mapStr.containsKey(key))
+                    return mapStr.get(key);
+                return null;
+            }
+
+            @Override
+            public Text execute() {
+                String value = getValue();
+                if(!inverse() && value != null)
+                    return new TranslatableText(value).setStyle(style);
+                return new TranslatableText("").setStyle(style);
+            }
+        }
+
+        private class PlainNode extends StyleBaseNode implements IStyleNode{
+            private String text;
+
+            public PlainNode(String _t, Style _s){
+                style = _s;
+                text = _t;
+            }
+
+            private PlainNode(){}
+
+            @Override
+            public Text execute() {
+                return new TranslatableText(text).setStyle(style);
+            }
+        }
+
         private String style;
         private HashMap<String, String> mapStr;
         private int next;
-        private MutableText result;
-        private Formatting currentColor;
+        //private MutableText result;
+        private Style currentStyle;
 
         public StyleParserV2()
         {
@@ -555,13 +652,14 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
         public Text parse(String s, HashMap<String, String> ms)
         {
-            result = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
-            currentColor = Formatting.WHITE;
+            //result = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
+            StyleNode result = new StyleNode();
+            currentStyle = Style.EMPTY;
             style = s;
             next = 0;
             mapStr = ms;
-            styleString();
-            return result;
+            styleString(result);
+            return result.execute();
         }
 
         private boolean plainChar() {
@@ -579,75 +677,124 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             return true;
         }
 
-        private void plainString() {
+        private void plainString(StyleNode node) {
             int start = next;
             while(plainChar());
             int end = next;
-            System.out.println("[Style] found plain: " + style.substring(start, end));
+            String plain = style.substring(start, end);
+            System.out.println("[Style] found plain: " + plain);
+
+
+            PlainNode plainNode = new PlainNode(plain, currentStyle);
+            node.add(plainNode);
         }
 
         private void letters(){
             while(Character.isLetter(style.charAt(next)) || style.charAt(next) == '_' || Character.isDigit(style.charAt(next))) next += 1;
         }
 
-        private void colorPattern()  throws StyleParserV2.WrongPatternException {
+        private Formatting strToColor(String colorName){
+            return Formatting.valueOf(colorName.toUpperCase());
+        }
+
+        private void colorPattern(StyleNode node)  throws StyleParserV2.WrongPatternException {
             match('%');
             int start = next;
             letters();
             int end = next;
-            System.out.println("[Style] found color: " + style.substring(start, end));
+            String colorName = style.substring(start, end);
+            System.out.println("[Style] found color: " + colorName);
             match('%');
+
+            try {
+                currentStyle = currentStyle.withColor(strToColor(colorName));
+            } catch (IllegalArgumentException ignored) {
+                PlainNode errorMsg = new PlainNode("<ERROR:wrong color name!>", Style.EMPTY.withColor(Formatting.RED));
+                node.add(errorMsg);
+                next = style.length();
+            }
         }
 
-        private void keyPattern()  throws StyleParserV2.WrongPatternException {
+        private void keyPattern(StyleNode node)  throws StyleParserV2.WrongPatternException {
             match('{');
+            KeyNode keyNode = new KeyNode(mapStr, currentStyle);
             if(style.charAt(next) == '#')
             {
                 match('#');
-                styleString();
+                Style saveStyle = currentStyle;
+                StyleNode child = new StyleNode(keyNode);
+                styleString(child);
                 match('#');
+                node.add(child);
+                currentStyle = saveStyle;
             }
             match('{');
+
+            boolean isInverse = false;
             if(style.charAt(next) == '!')
             {
                 next += 1;
+                isInverse = true;
                 System.out.println("[Style] key inverse");
             }
+
             int start = next;
             letters();
             int end = next;
-            System.out.println("[Style] found key: " + style.substring(start, end));
+            String key = style.substring(start, end);
+            System.out.println("[Style] found key: " + key);
+            keyNode.setKey(key);
+            keyNode.setInverse(isInverse);
+            node.add(keyNode);
+
 
             match('}');
             if(style.charAt(next) == '#')
             {
                 match('#');
-                styleString();
+                Style saveStyle = currentStyle;
+                StyleNode child = new StyleNode(keyNode);
+                styleString(child);
                 match('#');
+                node.add(child);
+                currentStyle = saveStyle;
             }
             match('}');
         }
 
-        private void styleString()
+        private void styleString(StyleNode node)
         {
             while(next < style.length() && style.charAt(next) != '#')
             {
-                plainString();
+                int start = next;
+                plainString(node);
                 if(next >= style.length()) break;
                 if(style.charAt(next) == '{')
                 {
                     try{
-                        keyPattern();
-                    }catch (WrongPatternException e){System.out.println(e.getMessage());}
-                    catch (Exception e){e.printStackTrace();}
+                        keyPattern(node);
+                    }catch (WrongPatternException e){
+                        PlainNode errorMsg = new PlainNode("<ERROR:wrong key pattern!>", Style.EMPTY.withColor(Formatting.RED));
+                        node.add(errorMsg);
+                        next = style.length();
+                    }
                 }
                 if(next >= style.length()) break;
                 if(style.charAt(next) == '%')
                 {
                     try {
-                        colorPattern();
-                    }catch (WrongPatternException e){System.out.println(e.getMessage());}
-                    catch (Exception e){e.printStackTrace();}
+                        colorPattern(node);
+                    }catch (WrongPatternException e){
+                        PlainNode errorMsg = new PlainNode("<ERROR:wrong color pattern!>", Style.EMPTY.withColor(Formatting.RED));
+                        node.add(errorMsg);
+                        next = style.length();
+                    }
+                }
+                int end = next;
+                if(start == end){
+                    PlainNode errorMsg = new PlainNode("<ERROR:wrong style pattern!>", Style.EMPTY.withColor(Formatting.RED));
+                    node.add(errorMsg);
+                    next = style.length();
                 }
             }
         }
