@@ -19,11 +19,14 @@ public class Config{
     @OptionValues(value = {"bilibili"})
     public String platform = "bilibili";
 
-    @OptionValues(value = {"%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}"})
-    public String chat_dm_style = "%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}";
-    @OptionValues(value = {"%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}"})
-    public String gift_dm_style = "%BLUE%[礼物]%RED%[{{roomOwner}}]%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}";
-
+    @OptionValues(value = {"\"%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}\""})
+    public String chat_dm_style = "%GREEN%[弹幕]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%GOLD%[UL{{uLevel}}]%WHITE%<{{danmuAuthur}}>:{{danmuMsg}}";
+    @OptionValues(value = {"\"%BLUE%[礼物]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}\""})
+    public String gift_dm_style = "%BLUE%[礼物]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} {{actionName}}了%GOLD%{{num}}%WHITE%个%LIGHT_PURPLE%{{giftName}}";
+    @OptionValues(value = {"\"%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 加入了房间\""})
+    public String welcome_dm_style = "%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 加入了房间";
+    @OptionValues(value = {"\"%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 关注了你\""})
+    public String subscribe_dm_style = "%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[J#{fanGuard}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 关注了你";
 
 
     @HidedConfigProperty
@@ -56,6 +59,8 @@ public class Config{
 
         chat_dm_style = getStringNotNull(c.chat_dm_style);
         gift_dm_style = getStringNotNull(c.gift_dm_style);
+        welcome_dm_style = getStringNotNull(c.welcome_dm_style);
+        subscribe_dm_style = getStringNotNull(c.subscribe_dm_style);
 
         if(all)
         {
@@ -111,6 +116,12 @@ public class Config{
         }else if(key.equals("gift_dm_style"))
         {
             gift_dm_style = value;
+        }else if(key.equals("welcome_dm_style"))
+        {
+            welcome_dm_style = value;
+        }else if(key.equals("subscribe_dm_style"))
+        {
+            subscribe_dm_style = value;
         }else if(key.equals("auto_reconnect"))
         {
             auto_reconnect = Boolean.parseBoolean(value);
@@ -144,6 +155,12 @@ public class Config{
         }else if(key.equals("gift_dm_style"))
         {
             return  getStringNotNull(gift_dm_style);
+        }else if(key.equals("welcome_dm_style"))
+        {
+            return getStringNotNull(welcome_dm_style);
+        }else if(key.equals("subscribe_dm_style"))
+        {
+            return getStringNotNull(subscribe_dm_style);
         }else if(key.equals("auto_reconnect"))
         {
             return "" + auto_reconnect;
