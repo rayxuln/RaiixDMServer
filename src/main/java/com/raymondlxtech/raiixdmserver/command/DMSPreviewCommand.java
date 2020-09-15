@@ -24,6 +24,7 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
 public class DMSPreviewCommand extends RaiixDMSCommand {
@@ -90,6 +91,8 @@ public class DMSPreviewCommand extends RaiixDMSCommand {
     public void execute(Entity sender, String[] args)
     {
         if(args.length < 1) return;
+
+        Random random = new Random();
 
         Text msg = null;
         // Get room config
