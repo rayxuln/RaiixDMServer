@@ -389,7 +389,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
     public static Text mapStringToStyledText(String style, HashMap<String, String> mapStr)
     {
-        return new StyleParserV2().parse(style, mapStr);
+        return new StyleParser().parse(style, mapStr);
     }
 
     public void sendChatMessageToTheExecutor(Text msg, BiliBiliDMClient client) {
@@ -403,181 +403,11 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
     private static class StyleParser{
         /*
-         *     _styleString := _colorPattern | _keyPattern | _styleString _colorPattern | _styleString _keyPattern
-         *     _colorPattern := % _letters %
-         *     _keyPattern := {{ _letters }}
-         */
-
-        private class WrongPatternException extends Exception {
-            public WrongPatternException(String s) {
-                super(s);
-            }
-        }
-
-        private String style;
-        private HashMap<String, String> mapStr;
-        private int next;
-        private MutableText result;
-        private Formatting currentColor;
-
-        public StyleParser()
-        {
-            next = 0;
-        }
-
-        public Text parse(String s, HashMap<String, String> ms)
-        {
-            result = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
-            currentColor = Formatting.WHITE;
-            style = s;
-            next = 0;
-            mapStr = ms;
-            styleString();
-            return result;
-        }
-
-        private void letters(){
-            while(Character.isLetter(style.charAt(next)) || style.charAt(next) == '_' || Character.isDigit(style.charAt(next))) next += 1;
-        }
-
-        private void colorPattern()  throws StyleParser.WrongPatternException {
-            match('%');
-            letters();
-            match('%');
-        }
-
-        private void keyPattern()  throws StyleParser.WrongPatternException {
-            match('{');
-            match('{');
-            letters();
-            match('}');
-            match('}');
-        }
-
-        private void styleString()
-        {
-            int aStart = 0;
-            while(next < style.length())
-            {
-                boolean hasIn = (next - 1 < 0 || style.charAt(next-1) != '\\');
-                hasIn = hasIn && style.charAt(next) == '%' || (style.charAt(next) == '{' && style.charAt(next+1) == '{');
-                if(hasIn)
-                {
-                    int aEnd = next;
-                    if(aStart < aEnd && aStart >= 0 && aEnd < style.length())
-                    {
-                        String piece = style.substring(aStart, aEnd);
-//                        System.out.println("[Raiix parse] piece=" + piece);
-                        result.append(new TranslatableText(piece).setStyle(Style.EMPTY.withColor(currentColor)));
-
-
-                        aStart = aEnd + 1;
-                    }
-                }
-
-
-                if((next - 1 < 0 || style.charAt(next-1) != '\\'))
-                {
-                    int start = 0;
-                    int end = 0;
-                    boolean success = false;
-
-                    if(style.charAt(next) == '%')
-                    {
-                        hasIn = true;
-                        start = next + 1;
-                        success = true;
-                        try {
-                            colorPattern();
-                        }catch (StyleParser.WrongPatternException e)
-                        {
-                            Text temp = new TranslatableText("<ERROR>").setStyle(Style.EMPTY.withColor(Formatting.RED));
-
-
-                            result.append(temp);
-                            success = false;
-                        }
-                        end = next - 1;
-
-//                        System.out.println("[Raiix parsing color] start="+start + ", end="+end+" , success="+success);
-                        if(success && end - start > 0)
-                        {
-                            if(start >= 0 && end < style.length() )
-                            {
-                                String colorName = style.substring(start, end);
-//                                System.out.println("ColorName=" + colorName);
-                                Formatting color = null;
-                                try {
-                                    color = Formatting.valueOf(colorName.toUpperCase());
-                                }catch (IllegalArgumentException e) {}
-                                if(color != null) {
-                                    currentColor = color;
-//                                    System.out.println("Color found!");
-                                }
-                                else {
-                                    currentColor = Formatting.WHITE;
-//                                    System.out.println("Color not found!");
-                                }
-
-                            }
-                        }
-
-                        aStart = next;
-                        continue;
-                    }else if(style.charAt(next) == '{' && style.charAt(next+1) == '{')
-                    {
-                        hasIn = true;
-                        start = next + 2;
-                        success = true;
-                        try {
-                            keyPattern();
-                        }catch (StyleParser.WrongPatternException e)
-                        {
-                            Text temp = new TranslatableText("<ERROR>").setStyle(Style.EMPTY.withColor(Formatting.RED));
-                            result.append(temp);
-                            success = false;
-                        }
-                        end = next - 2;
-
-//                        System.out.println("[Raiix parsing key] start="+start + ", end="+end+" , success="+success);
-                        if(success && end - start > 0)
-                        {
-                            if(start >= 0 && end < style.length() ) {
-                                String keyName = style.substring(start, end);
-//                                System.out.println("KeyName="+keyName);
-                                String value = mapStr.get(keyName);
-                                if (value != null) {
-                                    result.append(new TranslatableText(value).setStyle(Style.EMPTY.withColor(currentColor)));
-                                }
-                            }
-                        }
-
-                        aStart = next;
-                        continue;
-                    }
-                }
-                next += 1;
-            }
-        }
-
-        private void match(char c) throws StyleParser.WrongPatternException
-        {
-            if(style.charAt(next) == c)
-            {
-                next += 1;
-                return;
-            }
-            throw new StyleParser.WrongPatternException("missmatch with " + c);
-        }
-    }
-
-    private static class StyleParserV2{
-        /*
          *      _styleString := _colorPattern | _keyPattern | _plainString | _styleString _colorPattern | _styleString _keyPattern | _styleString _plainString
          *      _plainString := _plainChar | _plainString _plainChar
          *      _plainChar := \{ | \} | \# | \% | \\ | [^{}%#]
          *      _colorPattern := % _letters %
-         *      _keyPattern := { #_styleString# { _letters } #_styleString# } | { #_styleString# { ! _letters } #_styleString# }
+         *      _keyPattern := { #_styleString# { _letters } #_styleString# } | { #_styleString# { ! _letters } #_styleString# } | { #_styleString# { _letters = _numbers} #_styleString# }
          */
 
         private class WrongPatternException extends Exception {
@@ -623,7 +453,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
 
             @Override
             public Text execute() {
-                if(relatedNode == null || (!relatedNode.inverse() && relatedNode.getValue() != null) || (relatedNode.inverse() && relatedNode.getValue() == null))
+                if(relatedNode == null || (!relatedNode.expression() && ((!relatedNode.inverse() && relatedNode.getValue() != null) || (relatedNode.inverse() && relatedNode.getValue() == null))) || (relatedNode.expression() && relatedNode.calcExpression()))
                 {
                     MutableText res = new TranslatableText("").setStyle(Style.EMPTY.withColor(Formatting.WHITE));
                     while(!queue.isEmpty())
@@ -642,10 +472,16 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             private String key;
             private HashMap<String, String> mapStr;
             private boolean isInverse;
+            private boolean isExpression;
+            private int rightNum;
 
             public KeyNode(HashMap<String, String> _m, Style _s){
                 mapStr = _m;
                 style = _s;
+
+                isInverse = false;
+                isExpression = false;
+                rightNum = 0;
             }
 
             private KeyNode() {
@@ -662,6 +498,25 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 isInverse = v;
             }
 
+            public boolean expression(){
+                return isExpression;
+            }
+            public void setExpression(boolean v){
+                isExpression = v;
+            }
+
+            public void setRightNum(int v){
+                rightNum = v;
+            }
+            public boolean calcExpression(){
+                if(mapStr.containsKey(key))
+                {
+                    int leftNum = Integer.parseInt(mapStr.get(key));
+                    return leftNum == rightNum;
+                }
+                return false;
+            }
+
             private String getValue(){
                 if(mapStr.containsKey(key))
                     return mapStr.get(key);
@@ -671,7 +526,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             @Override
             public Text execute() {
                 String value = getValue();
-                if(!inverse() && value != null)
+                if(!inverse() && !expression() && value != null)
                     return new TranslatableText(value).setStyle(style);
                 return new TranslatableText("").setStyle(style);
             }
@@ -699,7 +554,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
         //private MutableText result;
         private Style currentStyle;
 
-        public StyleParserV2()
+        public StyleParser()
         {
             next = 0;
         }
@@ -749,11 +604,15 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             while(Character.isLetter(style.charAt(next)) || style.charAt(next) == '_' || Character.isDigit(style.charAt(next))) next += 1;
         }
 
+        private void numbers(){
+            while(Character.isDigit(style.charAt(next))) next += 1;
+        }
+
         private Formatting strToColor(String colorName){
             return Formatting.valueOf(colorName.toUpperCase());
         }
 
-        private void colorPattern(StyleNode node)  throws StyleParserV2.WrongPatternException {
+        private void colorPattern(StyleNode node)  throws WrongPatternException {
             match('%');
             int start = next;
             letters();
@@ -771,7 +630,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             }
         }
 
-        private void keyPattern(StyleNode node)  throws StyleParserV2.WrongPatternException {
+        private void keyPattern(StyleNode node)  throws WrongPatternException {
             match('{');
             KeyNode keyNode = new KeyNode(mapStr, currentStyle);
             if(style.charAt(next) == '#')
@@ -802,6 +661,22 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             keyNode.setKey(key);
             keyNode.setInverse(isInverse);
             node.add(keyNode);
+
+            if(!isInverse)
+            {
+                if(style.charAt(next) == '=')
+                {
+                    match('=');
+
+                    int num_start = next;
+                    numbers();
+                    int num_end = next;
+
+                    int num = Integer.parseInt(style.substring(num_start, num_end));
+                    keyNode.setExpression(true);
+                    keyNode.setRightNum(num);
+                }
+            }
 
 
             match('}');
@@ -855,14 +730,14 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
             }
         }
 
-        private void match(char c) throws StyleParserV2.WrongPatternException
+        private void match(char c) throws WrongPatternException
         {
             if(next < style.length() && style.charAt(next) == c)
             {
                 next += 1;
                 return;
             }
-            throw new StyleParserV2.WrongPatternException("missmatch with " + c);
+            throw new WrongPatternException("missmatch with " + c);
         }
     }
 }
