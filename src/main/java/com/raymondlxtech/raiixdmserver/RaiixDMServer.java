@@ -11,12 +11,6 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.server.ServerStartCallback;
 import net.fabricmc.fabric.api.event.server.ServerStopCallback;
-import net.fabricmc.fabric.api.registry.CommandRegistry;
-import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.launch.FabricServerTweaker;
-import net.fabricmc.loader.launch.common.FabricLauncher;
-import net.fabricmc.loom.util.FabricApiExtension;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.MessageType;
 import net.minecraft.server.MinecraftServer;
@@ -27,11 +21,6 @@ import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Util;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -173,11 +162,25 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
     @Override
     public void handleDMMessage(String msg, BiliBiliDMClient client) {
         try {
-            JsonObject msg_jo = new JsonParser().parse(msg).getAsJsonObject();
+            JsonObject msg_jo = JsonParser.parseString(msg).getAsJsonObject();
             String cmd = msg_jo.get("cmd").getAsString();
             //System.out.println("[Raiix] get a cmd: " + cmd);
             //System.out.println("[RaiixDebug] msg: " + msg);
-            if (cmd.equals("DANMU_MSG")) {
+
+            // Get room config
+            Config rc = theConfigHelper.getConfig();
+            HashMap<String, String> mapStr = new HashMap<>();
+            for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                mapStr.put(e.getKey(), e.getValue());
+            }
+            if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
+                rc = rc.roomConfigs.get(client.theRoom.roomID);
+                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
+                    mapStr.put(e.getKey(), e.getValue());
+                }
+            }
+
+            if (cmd.equals("DANMU_MSG") && rc.enable_chat_dm) {
                 JsonArray info = msg_jo.get("info").getAsJsonArray();
                 //System.out.println("[danmu info]: " + info.toString());
                 String danmu_msg = info.get(1).getAsString();
@@ -200,18 +203,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 }
 
                 int u_level = info.get(4).getAsJsonArray().get(0).getAsInt();
-                // Get room config
-                Config rc = theConfigHelper.getConfig();
-                HashMap<String, String> mapStr = new HashMap<>();
-                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                    mapStr.put(e.getKey(), e.getValue());
-                }
-                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
-                    rc = rc.roomConfigs.get(client.theRoom.roomID);
-                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                        mapStr.put(e.getKey(), e.getValue());
-                    }
-                }
+
                 mapStr.put("uLevel", String.valueOf(u_level));
                 mapStr.put("danmuAuthur", danmu_authur);
                 mapStr.put("danmuMsg", danmu_msg);
@@ -228,8 +220,9 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 // Parse styled msg
                 Text theDanmuText = mapStringToStyledText(rc.chat_dm_style, mapStr);
 //            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-                theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
-            } else if (cmd.equals("SEND_GIFT")) {
+                if (!theDanmuText.getString().isEmpty())
+                    theMinecraftServer.getPlayerManager().broadcast(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+            } else if (cmd.equals("SEND_GIFT") && rc.enable_gift_dm) {
                 JsonObject data = msg_jo.get("data").getAsJsonObject();
 
                 String giftName = data.get("giftName").getAsString();
@@ -243,18 +236,6 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 boolean fanShow = fanInfo.get("is_lighted").getAsInt() != 0;
                 int fanGuardLevel = fanInfo.get("guard_level").getAsInt();
 
-                // Get room config
-                Config rc = theConfigHelper.getConfig();
-                HashMap<String, String> mapStr = new HashMap<>();
-                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                    mapStr.put(e.getKey(), e.getValue());
-                }
-                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
-                    rc = rc.roomConfigs.get(client.theRoom.roomID);
-                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                        mapStr.put(e.getKey(), e.getValue());
-                    }
-                }
                 mapStr.put("danmuAuthur", uname);
                 mapStr.put("num", String.valueOf(num));
                 mapStr.put("actionName", actionName);
@@ -272,7 +253,8 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 // Parse styled msg
                 Text theDanmuText = mapStringToStyledText(rc.gift_dm_style, mapStr);
 //            theRoom.theMinecraftServer.getPlayerManager().sendToAll(theDanmuText);
-                theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+                if (!theDanmuText.getString().isEmpty())
+                    theMinecraftServer.getPlayerManager().broadcast(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
             } else if (cmd.equals("INTERACT_WORD"))/// msg_type=1 => Enter room, 2 => Subscribe, guard_level > 0 =>
             {
                 JsonObject data = msg_jo.get("data").getAsJsonObject();
@@ -286,18 +268,6 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 boolean fanShow = fanInfo.get("is_lighted").getAsInt() != 0;
                 int fanGuardLevel = fanInfo.get("guard_level").getAsInt();
 
-                // Get room config
-                Config rc = theConfigHelper.getConfig();
-                HashMap<String, String> mapStr = new HashMap<>();
-                for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                    mapStr.put(e.getKey(), e.getValue());
-                }
-                if (rc.roomConfigs.get(client.theRoom.roomID) != null) {
-                    rc = rc.roomConfigs.get(client.theRoom.roomID);
-                    for (Map.Entry<String, String> e : rc.customKeys.entrySet()) {
-                        mapStr.put(e.getKey(), e.getValue());
-                    }
-                }
                 mapStr.put("danmuAuthur", danmu_authur);
                 if (fanShow) {
                     mapStr.put("fanLevel", String.valueOf(fanLevel));
@@ -308,16 +278,19 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
                 }
                 mapStr.put("roomTitle", client.theRoom.roomTitle);
                 mapStr.put("roomOwner", client.theRoom.ownerName);
-                if (msg_type == 1) // Enter room
+                if (msg_type == 1  && rc.enable_welcome_dm) // Enter room
                 {
                     // Parse styled msg
                     Text theDanmuText = mapStringToStyledText(rc.welcome_dm_style, mapStr);
-                    theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
-                } else if (msg_type == 2) // Subscribe
+                    if (!theDanmuText.getString().isEmpty())
+                        theMinecraftServer.getPlayerManager().broadcast(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+
+                } else if (msg_type == 2 && rc.enable_subscribe_dm) // Subscribe
                 {
                     // Parse styled msg
                     Text theDanmuText = mapStringToStyledText(rc.subscribe_dm_style, mapStr);
-                    theMinecraftServer.getPlayerManager().broadcastChatMessage(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
+                    if (!theDanmuText.getString().isEmpty())
+                        theMinecraftServer.getPlayerManager().broadcast(theDanmuText, MessageType.CHAT, Util.NIL_UUID);
                 }
 
 
@@ -330,7 +303,7 @@ public class RaiixDMServer implements ModInitializer, BiliBiliDMPlugin {
     @Override
     public void broadcastMessage(String msg) {
         if(theMinecraftServer != null)
-            theMinecraftServer.getPlayerManager().broadcastChatMessage(new TranslatableText(msg), MessageType.CHAT, Util.NIL_UUID);
+            theMinecraftServer.getPlayerManager().broadcast(new TranslatableText(msg), MessageType.CHAT, Util.NIL_UUID);
     }
 
 

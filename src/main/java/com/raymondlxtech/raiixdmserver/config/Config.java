@@ -28,6 +28,14 @@ public class Config{
     @OptionValues(value = {"\"%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[舰长#{fanGuard=3}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 关注了你\""})
     public String subscribe_dm_style = "%GREEN%[提示]%RED%[{{roomOwner}}]%GOLD%{#[舰长#{fanGuard=3}#]#}%dark_purple%{#[#{fanName}#{{fanLevel}}]#}%WHITE%{{danmuAuthur}} 关注了你";
 
+    @OptionValues(value = {"true", "false"})
+    public boolean enable_chat_dm = true;
+    @OptionValues(value = {"true", "false"})
+    public boolean enable_gift_dm = true;
+    @OptionValues(value = {"true", "false"})
+    public boolean enable_welcome_dm = false;
+    @OptionValues(value = {"true", "false"})
+    public boolean enable_subscribe_dm = false;
 
     @HidedConfigProperty
     public ArrayList<String> addedRooms = new ArrayList<>();
@@ -128,6 +136,18 @@ public class Config{
         }else if(key.equals("auto_reconnect_delay"))
         {
             auto_reconnect_delay = Long.parseLong(value);
+        }else if(key.equals("enable_chat_dm"))
+        {
+            enable_chat_dm = Boolean.parseBoolean(value);
+        }else if(key.equals("enable_gift_dm"))
+        {
+            enable_gift_dm = Boolean.parseBoolean(value);
+        }else if(key.equals("enable_welcome_dm"))
+        {
+            enable_welcome_dm = Boolean.parseBoolean(value);
+        }else if(key.equals("enable_subscribe_dm"))
+        {
+            enable_subscribe_dm = Boolean.parseBoolean(value);
         }
         else
         {
@@ -167,7 +187,20 @@ public class Config{
         }else if(key.equals("auto_reconnect_delay"))
         {
             return "" + auto_reconnect_delay;
-        }else
+        }else if(key.equals("enable_chat_dm"))
+        {
+            return "" + enable_chat_dm;
+        }else if(key.equals("enable_gift_dm"))
+        {
+            return "" + enable_gift_dm;
+        }else if(key.equals("enable_welcome_dm"))
+        {
+            return "" + enable_welcome_dm;
+        }else if(key.equals("enable_subscribe_dm"))
+        {
+            return "" + enable_subscribe_dm;
+        }
+        else
         {
             return  getStringNotNull(customKeys.get(key));
         }
